@@ -19,6 +19,20 @@
 
 </div>
 
+## 🔎 TL;DR (5-Second Big Picture)
+
+- **Session-first, not chat-first** – every task lives in a structured session with THINK → SANDBOX → DO stages.
+- **Sandboxed agents with single ingress** – Gemini/Claude/Codex (or yours) can only propose `patch.diff`, protecting the project tree.
+- **3 Locks: SSOT, Smart Gates, Audit Trail** – human consensus docs, automated verification, and tamper-evident logs keep work safe.
+- **Artifacts over transcripts** – patches, events, and state are versioned so you can replay or audit any decision.
+
+### 📚 Where to start (2-minute map)
+
+- **New here?** Read **PRIMER.md** → skim **MASTER_BLUEPRINT.md** diagrams → run the **Quick Start** below.
+- **Running the workflow?** Use **docs/USER_GUIDE.md** for the end-to-end session lifecycle.
+- **CLI reference?** See **docs/USER_MANUAL.md** for flags and command details.
+- **Concept contract?** **SESSION_CONTRACT.md** is the canonical spec the tooling enforces.
+
 ---
 
 ## 🤔 The Problem
