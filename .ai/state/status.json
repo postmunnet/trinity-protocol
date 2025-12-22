@@ -1,0 +1,13 @@
+{
+  "$schema": "../schemas/status.schema.json",
+  "version": "1.0",
+  "initialized_at": "2025-01-01T00:00:00Z",
+  "last_updated": "2025-01-01T00:00:00Z",
+  "system": {
+    "status": "idle",
+    "active_capsules": 0,
+    "locked_files": []
+  },
+  "current_session": null,
+  "last_event_hash": null
+}
