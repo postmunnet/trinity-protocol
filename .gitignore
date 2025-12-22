@@ -26,6 +26,7 @@ build/
 # State files (system-managed, but allow templates)
 state/*.json
 !state/.gitkeep
+!state/*.template
 audit/locks.json
 audit/*.lock
 
@@ -59,3 +60,7 @@ htmlcov/
 
 # Secrets (local only)
 .secrets/
+
+# Prevent nested .ai folders
+.ai/
+!/.ai
