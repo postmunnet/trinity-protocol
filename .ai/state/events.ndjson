@@ -1,0 +1,2 @@
+{"timestamp": "2025-12-20T19:39:16Z", "type": "genesis", "details": {"note": "ledger initialized"}, "prev_hash": "genesis", "hash": "3059a37bf9b31442d7a9e2488884867dfca01ac886c8ff8b89b9e35595f3d3a1"}
+{"timestamp": "2025-12-20T19:39:16Z", "type": "scaffold_complete", "details": {"phase": "foundation", "components": ["policies", "templates", "state"]}, "prev_hash": "3059a37bf9b31442d7a9e2488884867dfca01ac886c8ff8b89b9e35595f3d3a1", "hash": "31017572814dbc8912ead46e5ae03063cde9b32ed2e7329dd7bb9e9f14e70f5b"}
