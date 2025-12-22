@@ -1113,10 +1113,439 @@ Frame 9: DONE
 
 ---
 
+---
+
+## 🆕 v0.5 Architecture - Agent Sandbox System (Phase 6.1)
+
+### Session Structure v0.5 (Hybrid Model)
+
+```
+sessions/YYYY-MM-DD_task_name/
+│
+├─┬─ THINK/                      📝 Human Planning
+│ ├── 00_CONTEXT.md
+│ ├── 01_PROMPT.md
+│ ├── 02_SCOPE.md
+│ ├── 03_ACCEPTANCE.md
+│ └── CONSENSUS.md               🆕 Published debate verdict
+│
+├─┬─ SANDBOX/                    🆕 Agent Working Areas (Disposable)
+│ │
+│ ├─┬─ gemini/                   🧠 Research & Analysis
+│ │ ├── WORKSPACE_PROMPT.md
+│ │ ├── research.md
+│ │ ├── analysis.md
+│ │ └── proposal.md              → For debate
+│ │
+│ ├─┬─ claude/                   🏗️ Planning & Safety
+│ │ ├── WORKSPACE_PROMPT.md
+│ │ ├── review.md
+│ │ ├── proposal.md              → For debate
+│ │ └── critique.md
+│ │
+│ ├─┬─ codex/                    ⚡ Implementation
+│ │ ├── WORKSPACE_PROMPT.md
+│ │ ├── implementation.md
+│ │ ├── proposal.md              → For debate
+│ │ └── patch.diff               ⭐ Single ingress to DO/dev
+│ │
+│ └─┬─ DEBATE/                   💬 Compiled Debate
+│   ├── round_1.md               (all proposals)
+│   ├── round_2.md               (critiques, if STANDARD/DEEP)
+│   └── verdict.md               (human writes decision)
+│
+├─┬─ DO/                         💼 Execution Workspace
+│ ├── snapshot/                  (immutable)
+│ ├── dev/                       (single ingress via patch.diff)
+│ └── prod/                      (via ai promote only)
+│
+├─┬─ CONTROL/                    📊 Status & Metadata
+│ ├── META.json
+│ ├── VERIFY.md
+│ └── LIVE_MONITOR.md
+│
+└─┬─ .state/                     🔐 Session-Local State
+  ├── session_state.json         🆕 (INIT/EDITING/VERIFIED/DONE)
+  ├── debate_state.json          🆕 (debate progress)
+  ├── verify_dev.json            🆕 (dev verification)
+  ├── verify_prod.json           🆕 (prod verification)
+  └── events.ndjson              (audit log)
+```
+
+---
+
+### v0.5 Multi-Agent Workflow (Debate-Driven)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    HUMAN CREATES SESSION                        │
+│                  ai session new "Task"                          │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+         ▼               ▼               ▼
+┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+│ 🧠 GEMINI      │ │ 🏗️ CLAUDE      │ │ ⚡ CODEX       │
+│ Research Lead  │ │ Safety Lead    │ │ Impl Lead      │
+└───────┬────────┘ └───────┬────────┘ └───────┬────────┘
+        │                  │                  │
+        │ Works in         │ Works in         │ Works in
+        ▼                  ▼                  ▼
+┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+│SANDBOX/gemini/ │ │SANDBOX/claude/ │ │SANDBOX/codex/  │
+│ proposal.md    │ │ proposal.md    │ │ proposal.md    │
+│ research.md    │ │ review.md      │ │ patch.diff     │
+└───────┬────────┘ └───────┬────────┘ └───────┬────────┘
+        │                  │                  │
+        └──────────────────┼──────────────────┘
+                           │ Parallel work (no conflicts)
+                           ▼
+                  ┌─────────────────┐
+                  │  ai debate      │
+                  │  compile        │
+                  └────────┬────────┘
+                           │
+                           ▼
+                  ┌─────────────────────────┐
+                  │ SANDBOX/DEBATE/         │
+                  │ ├── round_1.md          │
+                  │ └── verdict.md          │
+                  │     (TEMPLATE)          │
+                  └────────┬────────────────┘
+                           │
+                           ▼
+                  ┌─────────────────┐
+                  │ HUMAN DECIDES   │
+                  │ (Reads all      │
+                  │  proposals)     │
+                  │                 │
+                  │ Writes:         │
+                  │ - Decision      │
+                  │ - Rationale     │
+                  │ - Impl Notes    │
+                  └────────┬────────┘
+                           │
+                           ▼
+                  ┌─────────────────┐
+                  │ ai debate       │
+                  │ publish         │
+                  └────────┬────────┘
+                           │
+                           ▼
+                  ┌─────────────────┐
+                  │ THINK/          │
+                  │ CONSENSUS.md    │
+                  │ (Published)     │
+                  └────────┬────────┘
+                           │
+                           │ Codex implements
+                           ▼
+                  ┌─────────────────┐
+                  │ SANDBOX/codex/  │
+                  │ patch.diff      │
+                  │ (unified diff)  │
+                  └────────┬────────┘
+                           │
+                           ▼
+         ┌─────────────────────────────────┐
+         │    ai sandbox apply codex       │
+         │    (Single Ingress to DO/dev)   │
+         └────────┬────────────────────────┘
+                  │
+                  │ ⭐ ONLY entry point
+                  │ ⭐ Scope validated
+                  │ ⭐ Atomic operation
+                  ▼
+         ┌─────────────────┐
+         │   DO/dev/       │
+         │   (modified)    │
+         └────────┬────────┘
+                  │
+                  ▼
+         ┌─────────────────┐
+         │  ai verify dev  │
+         │  (Gates check)  │
+         └────────┬────────┘
+                  │
+                  ▼
+         ┌─────────────────┐
+         │  ai promote     │
+         │  (Requires:     │
+         │   verify PASS + │
+         │   CONSENSUS.md) │
+         └────────┬────────┘
+                  │
+                  ▼
+         ┌─────────────────┐
+         │   DO/prod/      │
+         │   (promoted)    │
+         └─────────────────┘
+```
+
+**Key Innovations v0.5:**
+- 🤖 Parallel agent research (SANDBOX/)
+- 💬 Structured debate (reduce bias)
+- 👤 Human authority (verdict)
+- ⭐ Single ingress (prevent conflicts)
+- 🔒 Consensus requirement (planning discipline)
+
+---
+
+### v0.5 Single Ingress Flow (Rule 2)
+
+```
+┌─────────────────────────────────────────────────────┐
+│           Multiple Agents Working                   │
+│                                                     │
+│  SANDBOX/gemini/   SANDBOX/claude/   SANDBOX/codex/│
+│     (research)        (planning)      (code)       │
+│         │                 │              │         │
+│         └─────────────────┼──────────────┘         │
+│                           │                        │
+│                  All create proposals              │
+│                           │                        │
+└───────────────────────────┼────────────────────────┘
+                            │
+                            ▼
+                   ┌────────────────┐
+                   │ Human Decides  │
+                   │ (Debate)       │
+                   └────────┬───────┘
+                            │
+                            │ Chooses approach
+                            ▼
+                   ┌────────────────┐
+                   │ Codex Creates  │
+                   │ patch.diff     │
+                   └────────┬───────┘
+                            │
+                            │ Unified diff only
+                            │ No binary, <10MB
+                            │ Scope validated
+                            ▼
+              ┌──────────────────────────┐
+              │  ai sandbox apply codex  │
+              │                          │
+              │  ⭐ SINGLE INGRESS ⭐    │
+              │  (Only way to DO/dev)    │
+              └────────┬─────────────────┘
+                       │
+                       │ Validates:
+                       │ ✓ Scope (only DO/dev)
+                       │ ✓ Format (unified)
+                       │ ✓ Size (<10MB)
+                       │ ✓ No symlinks
+                       │
+                       ▼
+              ┌─────────────────┐
+              │   DO/dev/       │
+              │   (updated)     │
+              └─────────────────┘
+
+Why Single Ingress Matters:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Prevents race conditions (agents don't conflict)
+2. Audit trail clear (know what was applied)
+3. Atomic operation (rollback on failure)
+4. Scope validation (can't touch THINK/, CONTROL/)
+5. Predictable state (no surprises)
+```
+
+---
+
+### v0.5 State Machine (Session-Local)
+
+```
+┌──────────┐
+│   INIT   │  Session created, no work yet
+└────┬─────┘
+     │
+     │ ai sandbox apply OR manual edit
+     ▼
+┌──────────┐
+│ EDITING  │  Code changes in DO/dev/
+└────┬─────┘
+     │
+     │ ai verify dev PASS
+     ▼
+┌──────────┐
+│ VERIFIED │  Dev verified, ready for prod
+└────┬─────┘
+     │
+     │ ai close (requires verify_prod PASS)
+     ▼
+┌──────────┐
+│   DONE   │  Session closed
+└──────────┘
+
+State Transitions:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• System-only (agents cannot modify .state/)
+• Enforced by commands (not suggestions)
+• Atomic writes (never 0-byte files)
+• Crash-resumable (state persisted)
+```
+
+---
+
+### v0.5 Trust Boundaries (Who Writes What)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                    TRUST BOUNDARIES                        │
+│                (v0.5 Agent Sandbox Model)                  │
+└────────────────────────────────────────────────────────────┘
+
+Zone                Human      Gemini     Claude     Codex      System
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+THINK/              ✅ Write   👁️ Read   👁️ Read   👁️ Read   👁️ Read
+SANDBOX/gemini/     👁️ Read   ✅ Write   👁️ Read   👁️ Read   👁️ Read
+SANDBOX/claude/     👁️ Read   👁️ Read   ✅ Write   👁️ Read   👁️ Read
+SANDBOX/codex/      👁️ Read   👁️ Read   👁️ Read   ✅ Write   👁️ Read
+SANDBOX/DEBATE/     👁️ Read   ❌ None   ❌ None   ❌ None   ✅ Write*
+DO/snapshot/        ❌ None   ❌ None   ❌ None   ❌ None   ✅ Write
+DO/dev/             ✅ Write   ❌ None   ❌ None   ❌ None   ✅ Write**
+DO/prod/            ❌ None   ❌ None   ❌ None   ❌ None   ✅ Write***
+CONTROL/            👁️ Read   👁️ Read   👁️ Read   👁️ Read   ✅ Write
+.state/             👁️ Read   ❌ None   ❌ None   ❌ None   ✅ Write
+
+* via: ai debate compile
+** via: ai sandbox apply (single ingress)
+*** via: ai promote (only)
+
+Key Principles:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Each agent has exclusive write to their SANDBOX/
+✅ Agents can read other sandboxes (collaboration)
+✅ DO/dev has ONE entry point (ai sandbox apply)
+✅ Human has final authority (verdict, promote)
+✅ System enforces rules (not just guidelines)
+```
+
+---
+
+### v0.5 Debate Workflow Detail
+
+```
+Step 1: Research Phase (Parallel)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Gemini                Claude               Codex
+     │                     │                   │
+     │ Researches          │ Analyzes          │ Prototypes
+     │ best practices      │ safety risks      │ implementation
+     │                     │                   │
+     ▼                     ▼                   ▼
+SANDBOX/gemini/      SANDBOX/claude/     SANDBOX/codex/
+  proposal.md          proposal.md         proposal.md
+  research.md          review.md           implementation.md
+
+
+Step 2: Compilation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+         ai debate compile --mode fast
+                     │
+                     ▼
+            ┌─────────────────┐
+            │ SANDBOX/DEBATE/ │
+            │ round_1.md      │ ← All proposals compiled
+            │ verdict.md      │ ← TEMPLATE for human
+            └─────────────────┘
+
+
+Step 3: Human Decision (Single Authority)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                 ┌─────────────┐
+                 │   HUMAN     │
+                 │  (Reads)    │
+                 └──────┬──────┘
+                        │
+         ┌──────────────┼──────────────┐
+         │              │              │
+    Proposal 1     Proposal 2     Proposal 3
+    (Gemini)       (Claude)       (Codex)
+         │              │              │
+         └──────────────┼──────────────┘
+                        │
+                        ▼
+                 ┌─────────────┐
+                 │   HUMAN     │
+                 │  (Decides)  │
+                 └──────┬──────┘
+                        │
+                        │ Fills verdict:
+                        │ • Decision: What to do
+                        │ • Rationale: Why
+                        │ • Impl Notes: How
+                        ▼
+            ┌─────────────────┐
+            │ verdict.md      │
+            │ (Filled)        │
+            └─────────────────┘
+
+
+Step 4: Publication
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+         ai debate publish
+                │
+                │ Validates (no [HUMAN: ] placeholders)
+                ▼
+         ┌──────────────┐
+         │THINK/        │
+         │CONSENSUS.md  │ ⭐ Single source of decision
+         └──────────────┘
+                │
+                │ Required for: ai promote
+                └─→ Planning discipline enforced
+```
+
+---
+
+### v0.5 Comparison: v0.4 vs v0.5
+
+```
+┌────────────────────────────────────────────────────────────┐
+│               Feature Comparison                           │
+├────────────────┬──────────────────┬────────────────────────┤
+│ Feature        │ v0.4             │ v0.5 (Current)         │
+├────────────────┼──────────────────┼────────────────────────┤
+│ Multi-Agent    │ ❌ No            │ ✅ Yes (SANDBOX/)      │
+│ Parallel Work  │ ❌ Manual        │ ✅ Agent isolation     │
+│ Debate         │ ❌ No            │ ✅ Structured workflow │
+│ Consensus      │ ⚠️ Optional      │ ✅ Required (default)  │
+│ State Tracking │ ⚠️ Global only   │ ✅ Session-local       │
+│ Crash Recovery │ ⚠️ Limited       │ ✅ Full resume         │
+│ Single Ingress │ ⚠️ Manual        │ ✅ Enforced (Rule 2)   │
+│ Verify Reports │ ⚠️ Single file   │ ✅ Separate dev/prod   │
+│ Safety Gates   │ ✅ Yes           │ ✅ Enhanced            │
+│ Audit Trail    │ ✅ Yes           │ ✅ Enhanced            │
+└────────────────┴──────────────────┴────────────────────────┘
+
+Evolution Path:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+v0.4: Phase-based workflow (safety focus)
+  ↓
+v0.5: Hybrid (Phase-based + Agent Sandboxes)
+  ↓
+v0.6: Session hygiene (gc, prune, archive) - Planned
+  ↓
+v0.7: Automation (WP8/WP9, API layer) - Planned
+```
+
+---
+
 **สรุป:**
 - Trinity = ระบบที่มี architecture ชัดเจน
 - Workflow มี safety gates ทุก step
+- v0.5 เพิ่ม multi-agent support (human-orchestrated)
 - Component ทำงานร่วมกันอย่างมีระบบ
-- Result = ปลอดภัย, รวดเร็ว, ตรวจสอบได้
+- Result = ปลอดภัย, ลด bias, ตรวจสอบได้
 
-**Read more:** USER_MANUAL.md, WHAT_YOU_GET.md
+**Read more:**
+- SESSION_CONTRACT.md (v0.5 spec)
+- docs/USER_GUIDE.md (workflows)
+- docs/GETTING_STARTED_v0.5.md (quick start)
