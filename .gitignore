@@ -64,3 +64,7 @@ htmlcov/
 # Prevent nested .ai folders
 .ai/
 !/.ai
+
+# Prevent accidental nested .ai folders
+**/.ai/
+!.ai
