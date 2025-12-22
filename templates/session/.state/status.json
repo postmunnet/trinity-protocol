@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "updated_at": null,
+  "phase": "INIT",
+  "status": "IDLE",
+  "active_session_id": null,
+  "stop_requested": false,
+  "last_verify": null,
+  "pending": []
+}

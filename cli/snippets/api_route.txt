@@ -1,0 +1,4 @@
+# API Route Snippet (Stub)
+method: GET
+path: /api/example
+handler: example_handler

@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "scope": "pending",
+  "timestamp": null,
+  "result": "pending",
+  "mode": "strict",
+  "gates": {
+    "forbidden_files": { "status": "pending", "details": [] },
+    "secret_scan": { "status": "pending", "details": [] },
+    "smoke_hooks": { "status": "pending", "details": [] }
+  }
+}

@@ -1,0 +1,33 @@
+# Role-Based Access Control (RBAC)
+# Defines who can do what within the Trinity Protocol CLI.
+
+roles:
+  admin:
+    description: "System Administrators"
+    permissions:
+      - "ai:*"
+  
+  architect:
+    description: "Senior Developers / Architects"
+    permissions:
+      - "ai:new"
+      - "ai:plan"
+      - "ai:approve"
+      - "ai:apply"
+      - "ai:rollback"
+      - "ai:verify"
+
+  developer:
+    description: "Standard Developers"
+    permissions:
+      - "ai:new"
+      - "ai:plan"
+      - "ai:apply" # Subject to risk gates
+      - "ai:check"
+      - "ai:status"
+
+  viewer:
+    description: "Read-only access"
+    permissions:
+      - "ai:status"
+      - "ai:verify"

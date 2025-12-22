@@ -1,0 +1,7 @@
+{
+  "version": "1.0",
+  "result": "pending",
+  "passed": false,
+  "timestamp": "{{TIMESTAMP}}",
+  "gates": {}
+}

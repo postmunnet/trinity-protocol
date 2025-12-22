@@ -1,0 +1,10 @@
+{
+  "files_touched": [
+    "path/to/file1.js",
+    "path/to/file2.py"
+  ],
+  "tests_to_run": [
+    "npm test"
+  ],
+  "risk_guess": "medium"
+}

@@ -1,0 +1,6 @@
+{
+  "version": "1.0",
+  "state": "INIT",
+  "created_at": "{{TIMESTAMP}}",
+  "updated_at": "{{TIMESTAMP}}"
+}

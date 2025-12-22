@@ -1,0 +1,16 @@
+{
+  "id": "{{SESSION_ID}}",
+  "name": "{{SESSION_NAME}}",
+  "created_at": "{{TIMESTAMP}}",
+  "status": "active",
+  "phase": "snapshot",
+  "workflow": {
+    "snapshot": false,
+    "dev_deployed": false,
+    "dev_verified": false,
+    "promoted": false,
+    "prod_deployed": false,
+    "prod_verified": false,
+    "closed": false
+  }
+}

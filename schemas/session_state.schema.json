@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Session State Schema",
+  "type": "object",
+  "required": ["phase", "status"],
+  "properties": {
+    "phase": {"type": "string"},
+    "status": {"type": "string"},
+    "risk": {"type": ["number", "string"]},
+    "allowed_paths": {"type": "array", "items": {"type": "string"}},
+    "branch": {"type": "string"}
+  }
+}

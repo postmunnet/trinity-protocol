@@ -1,0 +1,61 @@
+# Trinity Protocol .gitignore
+# v0.5 / Phase 6.1
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# State files (system-managed, but allow templates)
+state/*.json
+!state/.gitkeep
+audit/locks.json
+audit/*.lock
+
+# Session-specific runtime
+sessions/active/*/DO/dev/*
+sessions/active/*/DO/prod/*
+!sessions/active/*/.gitkeep
+
+# Logs
+logs/*.log
+logs/*.ndjson
+!logs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Keep structure
+!.gitkeep
+
+# Secrets (local only)
+.secrets/

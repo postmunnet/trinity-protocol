@@ -1,0 +1,23 @@
+# Guardrail Definitions
+# This file defines the specific commands and logic for the gates.
+
+definitions:
+  syntax_check:
+    python:
+      command: "python3 -m py_compile {files}"
+    javascript:
+      command: "node --check {files}"
+    php:
+      command: "php -l {files}"
+    generic:
+      command: "echo 'No syntax check defined for this type'"
+
+  secret_scan:
+    provider: "internal_regex"
+    config_source: "policies/safety.yaml"
+
+  test_runner:
+    python:
+      command: "pytest {files}"
+    javascript:
+      command: "npm test {files}"

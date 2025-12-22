@@ -1,0 +1,95 @@
+version: 1
+
+# Draft v1 — Safety policy for Trinity Protocol (MVP)
+# This file is the SSOT for automated risk scoring and gates.
+
+risk_scoring:
+  # Factors contribute to a 0–100 risk score. Weights are indicative for MVP.
+  factors:
+    file_types:
+      weight: 30
+      rules:
+        
+        # Low-risk
+        - match: "**/*.md"
+          score: 0
+        - match: "**/*.txt"
+          score: 5
+
+        # Medium-risk
+        - match: "**/*.js"
+          score: 50
+        - match: "**/*.py"
+          score: 50
+
+        # High-risk
+        - match: "db/**"
+          score: 90
+        - match: "migrations/**"
+          score: 90
+
+    file_count:
+      weight: 25
+      buckets:
+        - max: 1
+          score: 10
+        - max: 5
+          score: 40
+        - max: 10
+          score: 70
+        - max: 9999
+          score: 90
+
+    impact_zone:
+      weight: 25
+      rules:
+        - match: "docs/**"
+          score: 0
+        - match: "api/**"
+          score: 50
+        - match: "**/auth/**"
+          score: 70
+        - match: "db/**"
+          score: 100
+
+    reversibility:
+      weight: 20
+      rules:
+        - type: "git_revertable"
+          score: 10
+        - type: "config_sensitive"
+          score: 50
+        - type: "schema_change"
+          score: 90
+
+gates:
+  syntax:
+    enabled: true
+    description: "Language/toolchain syntax and lint checks"
+  secrets:
+    enabled: true
+    patterns:
+      - "(?i)api[_-]?key\\s*[:=]"
+      - "(?i)secret\\s*[:=]"
+      - "(?i)token\\s*[:=]"
+  tests:
+    enabled: true
+    min_coverage: 0
+    commands:
+      unit: "pytest -q"
+  scope:
+    mode: strict  # fail if draft.diff touches files outside 02_SCOPE allowlist
+
+hard_blocks:
+  - name: hardcoded_secrets
+    regex:
+      - "(?i)aws[_-]?secret[_-]?access[_-]?key"
+      - "(?i)private[_-]?key"
+    message: "Potential hardcoded secret detected"
+
+
+# Friend Proposal Integration Rules
+friend_rules:
+  - rule: "Browser Automation"
+    risk: "HIGH"
+    check: "Manual Approval Required"
