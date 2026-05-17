@@ -58,6 +58,8 @@ trinity_v2/
 
 ## Start here
 
+- **Origin story:** [`docs/ORIGIN.md`](docs/ORIGIN.md)
+- **Ritual reference:** [`docs/RITUALS.md`](docs/RITUALS.md)
 - **Getting started:** [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md)
 - **Architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - **Storage taxonomy:** [`docs/STORAGE_TAXONOMY.md`](docs/STORAGE_TAXONOMY.md)
