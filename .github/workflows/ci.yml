@@ -14,6 +14,9 @@ jobs:
     name: CLI tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      COLUMNS: "200"
+      NO_COLOR: "1"
 
     steps:
       - name: Check out repository
