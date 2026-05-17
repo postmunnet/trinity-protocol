@@ -1,0 +1,85 @@
+{
+  "context_schema_version": "1.0",
+  "ritual": "close",
+  "placeholders": [
+    {
+      "identifier": "session.slug",
+      "type": "plain_text",
+      "required": true,
+      "description": "Active session slug; appears in close report header for operator attribution.",
+      "source": "session.meta.slug"
+    },
+    {
+      "identifier": "session.id",
+      "type": "plain_text",
+      "required": true,
+      "description": "Canonical session identifier (sid) used as the manifest key and external audit filename stem.",
+      "source": "session.meta.id"
+    },
+    {
+      "identifier": "session.final_state",
+      "type": "enum",
+      "required": true,
+      "description": "Terminal state of the session at close-invocation time. close MUST only run from DONE/FAILED/ABORTED; the transition target SEALED is also enumerated for symmetry with state_transition.to.",
+      "enum_values": ["DONE", "FAILED", "ABORTED", "SEALED"],
+      "source": "session.state.current"
+    },
+    {
+      "identifier": "plan.tier",
+      "type": "enum",
+      "required": true,
+      "description": "Decision Velocity Tier per Addendum v1.0.1. COLD tier requires emission of an external audit artifact (Addendum §D); HOT/WARM may omit it.",
+      "enum_values": ["HOT", "WARM", "COLD"],
+      "source": "plan_envelope.tier"
+    },
+    {
+      "identifier": "close.requested_at_utc",
+      "type": "plain_text",
+      "required": true,
+      "description": "ISO-8601 UTC timestamp when close was invoked (close.invoked event ts).",
+      "source": "audit.close.invoked.ts_utc"
+    },
+    {
+      "identifier": "close.completed_at_utc",
+      "type": "plain_text",
+      "required": true,
+      "description": "ISO-8601 UTC timestamp when close.completed was emitted (after manifest generation succeeded).",
+      "source": "audit.close.completed.ts_utc"
+    },
+    {
+      "identifier": "final_manifest.artifact_count",
+      "type": "json_string",
+      "required": true,
+      "description": "Integer count of artifacts whose sha256 hashes were captured in final_manifest.artifact_hashes. Rendered as JSON-encoded number (Article XVI typed substitution).",
+      "source": "final_manifest.artifact_count"
+    },
+    {
+      "identifier": "final_manifest.path",
+      "type": "evidence_ref",
+      "required": true,
+      "description": "Evidence reference to the .state/final_manifest.json artifact produced by this close invocation.",
+      "source": "final_manifest.ref"
+    },
+    {
+      "identifier": "audit_chain_anchor",
+      "type": "evidence_ref",
+      "required": true,
+      "description": "sha256 of the audit-chain head event at close-completion time. Article X — audit replay must be possible from this anchor.",
+      "source": "audit.head_hash"
+    },
+    {
+      "identifier": "external_audit.path",
+      "type": "evidence_ref",
+      "required": false,
+      "description": "Evidence reference to the COLD-tier external audit emission at audit/external/<UTC-date>/<sid>.audit.json. Required iff plan.tier == COLD per Addendum v1.0.1 §D; omitted otherwise.",
+      "source": "external_audit.ref"
+    },
+    {
+      "identifier": "summary_notes",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Short human-readable summary of the session outcome carried forward from retro (consumed, never edited). Escaped as data, never instruction.",
+      "source": "retro.summary"
+    }
+  ]
+}

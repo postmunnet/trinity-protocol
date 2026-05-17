@@ -1,0 +1,56 @@
+# Git / OS
+.git/
+.DS_Store
+Thumbs.db
+
+# Local editor / harness state
+.claude/
+.cursor/
+.vscode/
+.idea/
+*.swp
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+.secrets/
+secrets/
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Dependencies / generated caches
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ai/.pytest_cache/
+coverage/
+build/
+dist/
+
+# Trinity runtime state, generated audit, sessions, and local memory
+.trinity/
+.memory/
+/audit/
+.ai/.memory/
+.ai/archive/
+.ai/logs/
+.ai/state/
+.ai/sessions/
+.ai/memory/
+.ai/audit/events.ndjson
+.ai/audit/*.ndjson
+
+# Large / provenance-only corpora. Keep out of public export unless
+# licensing and contamination review are explicitly completed.
+references/
+
+# Export outputs
+*_github_export/
+trinity_v2_github_export/

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Trinity CLI Entrypoint
+# Runs main.py as a module to enable relative imports
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+AI_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Keep the caller's cwd intact so project binding resolution works when this
+# central Trinity CLI is invoked from another repository. Add .ai to PYTHONPATH
+# instead of cd'ing into it.
+export PYTHONPATH="$AI_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+python3 -m cli.main "$@"

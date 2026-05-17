@@ -1,0 +1,54 @@
+{
+  "ritual": "ddd",
+  "version": "1.0",
+  "purpose": "Decision gate — operator reviews verifier report + presentation packet and issues human-authored approval, rejection, or hold per Constitution Articles XIII and XV.",
+  "delegated_role": "Verifier Agent + Presentation Synthesizer",
+  "input_context": "context.schema.json",
+  "write_template": "write.template.md",
+  "check_template": "check.template.json",
+  "output_artifacts": [
+    ".state/ddd/decision_packet.json",
+    ".state/ddd/approval.json",
+    ".state/ddd/rejection.json",
+    ".state/ddd/hold.json"
+  ],
+  "required_checks": [
+    "artifact_exists:.state/ddd/decision_packet.json",
+    "exactly_one_present:.state/ddd/approval.json|.state/ddd/rejection.json|.state/ddd/hold.json",
+    "headings_present:Decision Packet,Goal,Verifier Report,Risk,Requested Action",
+    "structural:decision.decided_by == human",
+    "structural:decision_packet.verifier_report_ref is_present",
+    "structural:transport.role != decision.decider",
+    "forbidden_phrases_absent",
+    "role_allowed:Human Operator",
+    "role_forbidden:Transport",
+    "state_transition:VERIFY|NEEDS_HUMAN -> PROMOTE|NEEDS_HUMAN|FAILED"
+  ],
+  "forbidden_actions": [
+    "ai_self_decide",
+    "transport_side_approval",
+    "modify_audit_chain",
+    "modify_policies",
+    "auto_approve_on_timeout",
+    "synthesize_decision_without_human",
+    "bypass_hmac_verification",
+    "drop_dissent_from_packet"
+  ],
+  "allowed_current_states": ["VERIFY", "NEEDS_HUMAN"],
+  "allowed_next_states": ["PROMOTE", "NEEDS_HUMAN", "FAILED"],
+  "audit_events": [
+    "ddd.invoked",
+    "ddd.proposed",
+    "ddd.approved",
+    "ddd.rejected",
+    "ddd.held",
+    "ddd.hmac_rejected"
+  ],
+  "retry_policy": {
+    "max_retries": 3,
+    "retry_owner": "Human_Operator",
+    "escalate_to": "NEEDS_HUMAN",
+    "preserve_failed_attempts": true,
+    "audit_each_attempt": true
+  }
+}

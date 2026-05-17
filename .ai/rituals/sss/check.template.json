@@ -1,0 +1,103 @@
+{
+  "check_template_version": "1.0",
+  "required_artifacts": [
+    "{{session.dir}}/THINK/",
+    "{{session.dir}}/SANDBOX/",
+    "{{session.dir}}/DO/dev/",
+    "{{session.dir}}/DO/prod/",
+    "{{session.dir}}/DO/snapshot/",
+    "{{session.dir}}/CONTROL/",
+    "{{session.dir}}/.ai/state/",
+    "{{session.dir}}/CONTROL/META.json",
+    "{{session.dir}}/THINK/00_CONTEXT.md"
+  ],
+  "required_headings": [
+    "Session Identity",
+    "Declared Goal",
+    "Velocity Tier",
+    "Workflow Type",
+    "Capsule Layout",
+    "Kernel Provenance",
+    "Next Step"
+  ],
+  "required_fields": {
+    "{{session.dir}}/CONTROL/META.json": "session_id",
+    "{{session.dir}}/CONTROL/META.json:slug": "slug",
+    "{{session.dir}}/CONTROL/META.json:goal": "goal",
+    "{{session.dir}}/CONTROL/META.json:risk_tier": "risk_tier",
+    "{{session.dir}}/CONTROL/META.json:created_at": "created_at",
+    "{{session.dir}}/CONTROL/META.json:operator": "operator",
+    "{{session.dir}}/CONTROL/META.json:current_state": "current_state",
+    "{{session.dir}}/CONTROL/META.json:previous_audit_hash": "previous_audit_hash"
+  },
+  "required_evidence_refs": {
+    "session.created_audit_event": {
+      "kind": "audit_event",
+      "event_type": "session.created",
+      "required": true,
+      "description": "The session.created event MUST be appended to .ai/audit/events.ndjson with the new session_id and the predecessor audit hash."
+    },
+    "sss.invoked_audit_event": {
+      "kind": "audit_event",
+      "event_type": "sss.invoked",
+      "required": true,
+      "description": "The sss.invoked event MUST precede session.created and record the operator + slug request."
+    }
+  },
+  "required_structural_predicates": [
+    {"predicate": "session.id matches ^[0-9]{4}_", "required": true},
+    {"predicate": "session.risk_tier in [HOT, WARM, COLD]", "required": true},
+    {"predicate": "session.current_state == READY_at_invocation", "required": true},
+    {"predicate": "session.current_state == THINK_after_success", "required": true},
+    {"predicate": "control_meta.created_at matches ISO8601_UTC", "required": true},
+    {"predicate": "audit.chain.appended_only == true", "required": true},
+    {"predicate": "session.dir.parent == .ai/sessions/active", "required": false}
+  ],
+  "required_phrases": [],
+  "forbidden_phrases": [
+    "{{user_input}}",
+    "approved",
+    "verified",
+    "deployed",
+    "complete",
+    "canonical truth",
+    "auto-pinned",
+    "memory learned"
+  ],
+  "forbidden_actions": [
+    "write_to_other_session_directory",
+    "modify_audit_chain",
+    "modify_canonical_policies",
+    "modify_schemas",
+    "semantic_synthesis",
+    "self_trigger",
+    "memory_learn",
+    "auto_pin",
+    "decide_workflow_meaning",
+    "skip_audit_emission"
+  ],
+  "allowed_roles": [
+    "Session Initializer",
+    "Kernel"
+  ],
+  "forbidden_roles": [
+    "Transport",
+    "Memory CLI",
+    "Retro Writer",
+    "Verifier Agent",
+    "Executor Agent",
+    "Planning Agent",
+    "Clarification Agent",
+    "Presentation Synthesizer"
+  ],
+  "state_transition": {
+    "from": ["READY"],
+    "to": ["THINK"]
+  },
+  "failure_behavior": {
+    "on_missing_artifact": "BLOCK",
+    "on_missing_evidence": "BLOCK",
+    "on_forbidden_phrase": "BLOCK",
+    "on_optional_failure": "WARN"
+  }
+}

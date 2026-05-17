@@ -1,0 +1,85 @@
+{
+  "context_schema_version": "1.0",
+  "ritual": "gogogo",
+  "placeholders": [
+    {
+      "identifier": "session.id",
+      "type": "plain_text",
+      "required": true,
+      "description": "Canonical session identifier. Plain-text data, never instruction.",
+      "source": "kernel.session_manifest"
+    },
+    {
+      "identifier": "session.slug",
+      "type": "plain_text",
+      "required": true,
+      "description": "Short kebab-case slug naming the workflow. Treated as data, never interpreted as instruction.",
+      "source": "kernel.session_manifest"
+    },
+    {
+      "identifier": "session.dir",
+      "type": "path",
+      "required": true,
+      "description": "Absolute path to the session capsule root directory.",
+      "source": "kernel.session_manifest"
+    },
+    {
+      "identifier": "step.id",
+      "type": "plain_text",
+      "required": true,
+      "description": "Step identifier from plan.json (e.g. 'S1', 'S2', 'S3'). Identifies which planned step this execution log corresponds to.",
+      "source": "plan_envelope.steps[].id"
+    },
+    {
+      "identifier": "step.action_summary",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Short markdown-escaped summary of the action the Executor performed for this step. Operator-readable; never interpreted as instruction by kernel.",
+      "source": "plan_envelope.steps[].action"
+    },
+    {
+      "identifier": "step.verdict",
+      "type": "enum",
+      "required": true,
+      "description": "Verifier-emitted verdict for the step. Constitution Article VIII: PASS requires evidence; UNVERIFIED is preferred over false PASS; FAIL halts ritual subject to retry policy.",
+      "enum_values": ["PASS", "FAIL", "UNVERIFIED"],
+      "source": "verifier_report.verdict"
+    },
+    {
+      "identifier": "step.evidence",
+      "type": "evidence_ref",
+      "required": true,
+      "description": "Artifact path + sha256 (or audit event ref) cited by the Verifier as proof for the step verdict. Required by Article VIII; absence forces UNVERIFIED.",
+      "source": "verifier_report.evidence_ref"
+    },
+    {
+      "identifier": "step.notes",
+      "type": "markdown_escaped",
+      "required": false,
+      "description": "Optional markdown-escaped Verifier notes (e.g. caveats, partial-pass reasoning). Data only; not authority.",
+      "source": "verifier_report.notes"
+    },
+    {
+      "identifier": "step.started_at_utc",
+      "type": "plain_text",
+      "required": true,
+      "description": "ISO 8601 UTC timestamp when the Executor began this step.",
+      "source": "kernel.clock"
+    },
+    {
+      "identifier": "step.completed_at_utc",
+      "type": "plain_text",
+      "required": true,
+      "description": "ISO 8601 UTC timestamp when the Verifier emitted the step verdict.",
+      "source": "kernel.clock"
+    },
+    {
+      "identifier": "step.owner_role",
+      "type": "enum",
+      "required": true,
+      "description": "Role that performed the step body. Article III: EXECUTOR may never be the role that decides its own verdict (separation enforced by kernel).",
+      "enum_values": ["EXECUTOR", "VERIFIER", "PLANNER"],
+      "source": "kernel.role_matrix"
+    }
+  ]
+}

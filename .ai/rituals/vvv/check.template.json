@@ -1,0 +1,71 @@
+{
+  "check_template_version": "1.0",
+  "required_artifacts": [
+    "THINK/01_PROMPT.md",
+    ".state/vvv_pass"
+  ],
+  "required_headings": [
+    "# vvv",
+    "## Q1 Goal",
+    "## Q2 Scope",
+    "## Q3 Constraint",
+    "## Q4 Acceptance",
+    "## Q5 Risk"
+  ],
+  "required_fields": {},
+  "required_evidence_refs": {
+    "operator_answers": {
+      "kind": "user_input",
+      "required": true,
+      "description": "All five answers MUST originate from the operator (not AI synthesis). Kernel verifies via context.schema.json placeholder sources (user.answer.q1..q5)."
+    }
+  },
+  "required_structural_predicates": [
+    {"predicate": "answers.count == 5", "required": true},
+    {"predicate": "answers.q1_goal.length >= 8", "required": true},
+    {"predicate": "answers.q2_scope.length >= 8", "required": true},
+    {"predicate": "answers.q3_constraint.length >= 8", "required": true},
+    {"predicate": "answers.q4_acceptance.length >= 8", "required": true},
+    {"predicate": "answers.q5_risk.length >= 8", "required": true},
+    {"predicate": "headings.count(starts_with('## Q')) == 5", "required": true},
+    {"predicate": "session.slug.length >= 1", "required": false}
+  ],
+  "required_phrases": [],
+  "forbidden_phrases": [
+    "{{user_input}}",
+    "TODO: fill in",
+    "TBD",
+    "FIXME",
+    "<insert answer>",
+    "lorem ipsum"
+  ],
+  "forbidden_actions": [
+    "synthesize_answers_without_operator_input",
+    "modify_audit_chain",
+    "modify_policies",
+    "decide_gate_verdict",
+    "skip_any_of_five_questions",
+    "semantic_synthesis"
+  ],
+  "allowed_roles": [
+    "Clarification Agent",
+    "Human Operator",
+    "Kernel"
+  ],
+  "forbidden_roles": [
+    "Transport",
+    "Memory CLI",
+    "Retro Writer",
+    "Executor Agent"
+  ],
+  "state_transition": {
+    "from": ["THINK"],
+    "to": ["THINK"]
+  },
+  "failure_behavior": {
+    "on_missing_artifact": "BLOCK",
+    "on_missing_evidence": "BLOCK",
+    "on_forbidden_phrase": "BLOCK",
+    "on_optional_failure": "WARN"
+  }
+}

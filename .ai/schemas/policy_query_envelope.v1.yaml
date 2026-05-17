@@ -1,0 +1,378 @@
+# =============================================================================
+# DRAFT PROPOSAL FOR OPERATOR REVIEW
+# Per Trinity Constitution Article XIII (Human Authority), this schema MUST
+# be human-authored before it lands at .ai/schemas/policy_query_envelope.v1.yaml.
+# AI MAY propose; AI MUST NOT decide.
+#
+# DO NOT COMMIT until the operator has reviewed every field, replaced every
+# placeholder, and authorized the schema under Article XXIX.
+#
+# Source-of-truth normative spec:
+#   docs/specs/TRINITY_POLICY_ENGINE_SPEC_V1.md
+#   - Section 4.1  Query input schema  (normative)
+#   - Section 4.2  Verdict response schema  (normative)
+#   - Section 2.1  Closed verdict set
+#   - Section 2.4  Closed reason-code enumeration
+#   - Section 6.2  decided_by: human envelope shape
+#
+# Drafted by AI proposer on 2026-05-15. Operator review pending.
+# =============================================================================
+
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://trinity.local/schemas/policy_query_envelope.v1.yaml"
+title: "Trinity Policy Query Envelope (v1)"
+description: >
+  Schema for the structured input and output of policy.query(envelope) calls.
+  Defined by TRINITY_POLICY_ENGINE_SPEC_V1 Sections 4.1 and 4.2. The engine
+  MUST return deny/schema_invalid for any query missing a required field.
+schema_version: "1"
+
+# =============================================================================
+# Top-level oneOf: a document conforming to this schema is either a
+# QueryEnvelope (kernel -> engine) or a VerdictEnvelope (engine -> kernel).
+# =============================================================================
+oneOf:
+  - $ref: "#/components/schemas/QueryEnvelope"
+  - $ref: "#/components/schemas/VerdictEnvelope"
+
+components:
+  schemas:
+
+    # -----------------------------------------------------------------------
+    # QueryEnvelope -- input to policy.query(...) (Phase 5 Section 4.1).
+    # -----------------------------------------------------------------------
+    QueryEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - query_id
+        - ts
+        - actor
+        - action
+        - target
+        - context
+      properties:
+
+        schema_version:
+          type: string
+          const: "1"
+          description: "Pinned to '1' for v1 schema. Phase 5 Section 4.1."
+
+        query_id:
+          type: string
+          # ULID per Phase 5 Section 4.1 ("caller-generated; reused in the
+          # verdict envelope"). Pattern matches Crockford base32 26-char ULID.
+          pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+          description: >
+            Caller-generated ULID. Echoed verbatim in the VerdictEnvelope
+            (Section 4.2) so the kernel can correlate query <-> verdict in
+            the audit chain.
+
+        ts:
+          type: string
+          format: date-time
+          description: "ISO 8601 UTC timestamp at which the query was emitted."
+
+        actor:
+          type: object
+          additionalProperties: false
+          required: [id, authority_class]
+          properties:
+            id:
+              type: string
+              minLength: 1
+              description: >
+                Stable actor identifier, e.g. 'kernel', 'executor_helper',
+                'human:operator', 'transport:trinity-tg-bot'.
+            authority_class:
+              type: string
+              # Phase 5 Section 4.1: enum [ai, human, kernel, tool, transport].
+              # NOTE: drafting prompt mandates {kernel, agent, human, transport};
+              # spec normative enum is broader. Operator should reconcile --
+              # see report ambiguity note. Drafted to match the spec.
+              enum: ["ai", "human", "kernel", "tool", "transport", "agent"]
+
+        action:
+          type: object
+          additionalProperties: false
+          required: [kind, detail]
+          properties:
+            kind:
+              type: string
+              # Closed enum per Phase 5 Section 4.1.
+              enum:
+                - "transition"
+                - "tool_invoke"
+                - "fs_read"
+                - "fs_write"
+                - "fs_delete"
+                - "net_outbound"
+                - "proc_exec"
+                - "policy_read"
+                - "policy_write"
+                - "ddd_propose"
+                - "ddd_decide"
+            detail:
+              type: object
+              description: >
+                Action-specific payload; keys depend on kind. For example:
+                  transition  -> { from: 'VERIFY', to: 'DEPLOY' }
+                  fs_write    -> { path: '...', bytes: <int>,
+                                   payload_sha256: '<hex>' }
+                  tool_invoke -> { tool_name: '<id>', args_summary: '...' }
+                  net_outbound -> { host: '<fqdn>', protocol: 'https' }
+              # Schema-permissive: per-kind narrowing is enforced by the
+              # engine's per-kind validators, not by this top-level schema.
+              additionalProperties: true
+
+        target:
+          type: object
+          additionalProperties: false
+          required: [type, value]
+          properties:
+            type:
+              type: string
+              # Closed enum per Phase 5 Section 4.1.
+              enum:
+                - "path"
+                - "host"
+                - "binary"
+                - "transition"
+                - "tool_name"
+                - "audit_event"
+                - "policy_file"
+                - "none"
+            value:
+              # null permitted only when type == "none".
+              oneOf:
+                - type: string
+                  minLength: 1
+                - type: "null"
+              description: >
+                Stringified target identifier (path, FQDN, binary basename,
+                transition pair, tool name, audit event id, policy file path)
+                or null when target.type is 'none'.
+
+        context:
+          type: object
+          additionalProperties: false
+          required:
+            - session_id
+            - ritual_phase
+            - declared_authority
+            - evidence_refs
+          properties:
+            session_id:
+              # ULID or null. Phase 5 Section 4.1.
+              oneOf:
+                - type: string
+                  pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+                - type: "null"
+              description: "Active session ULID, or null for kernel-boot queries."
+            ritual_phase:
+              type: string
+              # Closed enum per Phase 5 Section 4.1. Mirrors the kernel
+              # state graph nodes plus a 'none' escape.
+              enum:
+                - "READY"
+                - "THINK"
+                - "PLAN"
+                - "SANDBOX"
+                - "EXECUTE"
+                - "VERIFY"
+                - "PROMOTE"
+                - "DEPLOY"
+                - "RETRO"
+                - "DONE"
+                - "FAILED"
+                - "ABORTED"
+                - "REOPENED"
+                - "none"
+            declared_authority:
+              # What the actor CLAIMS as the basis for the action; the engine
+              # verifies the claim against the rule base. Null when the actor
+              # offers no claim (engine then evaluates strictly).
+              oneOf:
+                - type: string
+                  minLength: 1
+                - type: "null"
+              description: >
+                E.g. 'plan_envelope.allowed_paths', 'sandbox_profile:default',
+                'human_gate:gate.production_deploy'.
+            evidence_refs:
+              type: array
+              items:
+                type: string
+                minLength: 1
+              description: >
+                Artifact paths the caller offers as basis for the request.
+                May be empty. Each item is a path or audit-event reference.
+
+    # -----------------------------------------------------------------------
+    # VerdictEnvelope -- output of policy.query(...) (Phase 5 Section 4.2).
+    # -----------------------------------------------------------------------
+    VerdictEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - query_id
+        - verdict
+        - reason
+        - evidence_ref
+        - emitted_at
+        - engine_version
+      properties:
+
+        schema_version:
+          type: string
+          const: "1"
+
+        query_id:
+          type: string
+          pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+          description: "Echoed verbatim from the corresponding QueryEnvelope."
+
+        verdict:
+          type: string
+          # Closed verdict set per Phase 5 Section 2.1. The Policy Engine
+          # MUST NOT return any verdict outside this enum; doing so is
+          # itself a constitutional violation under Article XVIII.
+          enum:
+            - "allow"
+            - "deny"
+            - "conditional"
+            - "NEEDS_HUMAN"
+
+        reason:
+          type: string
+          # Closed reason-code enumeration per Phase 5 Section 2.4.
+          # Adding a new reason code is an operational-tier amendment.
+          enum:
+            - "actor_in_allowed_paths"     # representative allow reason
+            - "human_gate_satisfied"       # post-gate allow reason
+            - "unknown_authority"          # default-deny (Article XVI)
+            - "forbidden_path"             # target matches forbidden_paths glob
+            - "secret_pattern_detected"    # regex or entropy threshold hit
+            - "human_gate_required"        # Critical Gate triggered
+            - "illegal_actor"              # actor lacks declared authority
+            - "illegal_target"             # target outside allowed surface
+            - "schema_invalid"             # query envelope failed validation
+            - "quota_exceeded"             # actor exceeded a declared quota
+            - "amendment_required"         # rule exists but is stale
+
+        evidence_ref:
+          type: object
+          additionalProperties: false
+          required: [rule_id, rule_file, rule_anchor]
+          properties:
+            rule_id:
+              type: string
+              minLength: 1
+              description: "Stable id of the policy rule that fired (or 'default-deny')."
+            rule_file:
+              type: string
+              minLength: 1
+              description: "Path of the canonical file the rule lives in."
+            rule_anchor:
+              type: string
+              minLength: 1
+              description: "YAML anchor or line range identifying the rule body."
+            audit_seq:
+              # Optional. The engine itself does not write the audit row; the
+              # kernel does. When the kernel echoes back the seq it appended,
+              # the engine includes it for correlation.
+              type: integer
+              minimum: 0
+
+        # Layer that fired (which canonical file produced the rule). Optional
+        # but recommended for retro analysis. Mirrors policy_engine.layered_files
+        # roles in trinity_policy.yaml.
+        policy_layer:
+          type: string
+          enum:
+            - "safety"
+            - "gates"
+            - "verifier_boundary_check"
+            - "primary_rules"
+            - "default_deny"
+
+        # Present only when verdict == "conditional" (Phase 5 Section 4.2).
+        conditions:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [condition_id, description, re_query]
+            properties:
+              condition_id:
+                type: string
+                minLength: 1
+              description:
+                type: string
+                minLength: 1
+              re_query:
+                $ref: "#/components/schemas/QueryEnvelope"
+
+        # Present only when verdict == "NEEDS_HUMAN" (Phase 5 Section 4.2).
+        human_gate:
+          type: object
+          additionalProperties: false
+          required: [gate_id, artifact_required, rationale]
+          properties:
+            gate_id:
+              type: string
+              minLength: 1
+              description: "One of the gates declared in trinity_policy.yaml.critical_gates."
+            artifact_required:
+              type: string
+              minLength: 1
+              description: "E.g. path to the ddd-packet template the operator must fill."
+            rationale:
+              type: string
+              minLength: 1
+              description: "One-line rationale surfaced to the operator."
+
+        emitted_at:
+          type: string
+          format: date-time
+          description: "ISO 8601 UTC timestamp at which the verdict was produced."
+
+        engine_version:
+          type: string
+          description: >
+            The engine binary version that produced this verdict
+            (e.g. '1.0'). Bumped only on engine code changes, not on
+            policy amendments. Phase 5 Section 9.6.
+
+    # -----------------------------------------------------------------------
+    # Conditional ALLOW/DENY interplay constraints.
+    # The schema cannot fully express "conditions present iff verdict ==
+    # conditional" without draft-2020-12 if/then; the engine enforces
+    # this at runtime. Documented here so reviewers see the intent.
+    # -----------------------------------------------------------------------
+    # If verdict == "conditional", the engine MUST emit at least one
+    # entry in `conditions`. If verdict == "NEEDS_HUMAN", the engine
+    # MUST emit `human_gate`. If verdict == "allow" or "deny", neither
+    # `conditions` nor `human_gate` is permitted (additionalProperties:
+    # false on the parent enforces no extras; per-verdict shape is
+    # enforced by the engine validator).
+
+# =============================================================================
+# END OF DRAFT PROPOSAL
+#
+# Operator review checklist:
+#   [ ] Confirm authority_class enum matches the spec normative set
+#       (spec lists [ai, human, kernel, tool, transport]; this draft
+#       added 'agent' to bridge in-house agent vocabulary -- decide
+#       which is canonical and align Section 4.1 of the spec accordingly).
+#   [ ] Confirm reason-code enum is the operationally complete set; if
+#       any new reason code is needed, add via operational amendment.
+#   [ ] Confirm ULID regex matches the kernel's ULID generator output.
+#   [ ] Confirm ritual_phase enum matches .ai/graphs/standard.yaml node ids.
+#   [ ] Decide whether to express verdict-shape conditionals via
+#       JSON Schema if/then/else (currently runtime-enforced only).
+# After review, commit with decided_by: human envelope.
+# =============================================================================

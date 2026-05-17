@@ -1,0 +1,351 @@
+# =============================================================================
+# DRAFT PROPOSAL FOR OPERATOR REVIEW
+# Per Trinity Constitution Article XIII (Human Authority) and Article III
+# (AI Cannot Govern Itself), this file MUST be human-authored before it lands
+# at .ai/policies/trinity_policy.yaml. AI MAY propose; AI MUST NOT decide.
+#
+# DO NOT COMMIT until the operator has reviewed every block, replaced every
+# placeholder, and authorized the version bump under Article XXIX.
+#
+# Source-of-truth normative spec:
+#   docs/specs/TRINITY_POLICY_ENGINE_SPEC_V1.md  (Phase 5)
+#
+# Constitutional anchors (verbatim quotes live in the spec, Section 1):
+#   Article III   -- AI Cannot Govern Itself        (write-lock on .ai/policies/**)
+#   Article IV    -- Separation of Responsibilities (orthogonal to verifier + state machine)
+#   Article XIII  -- Human Authority                (decided_by: human envelopes)
+#   Article XVI   -- Least Authority                (default-deny on unknown queries)
+#   Article XX    -- Passive Core                   (engine never self-triggers)
+#   Article XXV   -- Constitutional Priority Order  (this file is rank 3)
+#   Article XXIX  -- Constitutional Amendment       (six-step protocol below)
+#
+# Drafted by AI proposer on 2026-05-15. Operator review pending.
+# =============================================================================
+
+policy_engine:
+
+  # -------------------------------------------------------------------------
+  # Engine version. Bumping this is a code-change event, NOT a policy edit
+  # (per Phase 5 spec Section 9.6). Emitted in every verdict envelope so
+  # that audit consumers can correlate verdicts to engine releases.
+  # -------------------------------------------------------------------------
+  version: "1.0"
+
+  # -------------------------------------------------------------------------
+  # Layered file ordering (Phase 5 spec Section 3 -- Policy File Catalog).
+  #
+  # The Policy Engine loads exactly four canonical files. Order matters
+  # because the engine evaluates safety hard-blocks BEFORE gate checks
+  # BEFORE verifier-rules boundary checks. See Phase 5 Section 7.6 for
+  # the fixed evaluation order on fs_write queries.
+  #
+  # Each file lists its sha256 (operator fills in at boot-time). The engine
+  # MUST refuse to start if any file is unreadable, malformed, or missing
+  # the `version` frontmatter field (Phase 5 Section 3.4).
+  # -------------------------------------------------------------------------
+  layered_files:
+
+    # First layer: hard safety blocks + risk scoring + secret regex.
+    # Consumed for hard_blocks, gates.secrets.patterns, gates.secrets.exclude_paths.
+    # Ownership: human only (Phase 5 Section 3.2).
+    - path: ".ai/policies/safety.yaml"
+      role: "safety"
+      load_order: 1
+      ownership: "human_only"
+      description: >
+        Risk-scoring factors, secret-scan regex, hard-block patterns.
+        The deterministic safety surface. Read by Phase 3 verifier and
+        by this engine. Phase 5 Section 3.1.
+
+    # Second layer: gate command definitions (test runners, syntax checks,
+    # secret-scan provider). The engine consumes the gate DEFINITIONS;
+    # the verifier consumes the gate COMMANDS.
+    - path: ".ai/policies/gates.yaml"
+      role: "gates"
+      load_order: 2
+      ownership: "human_only"
+      description: >
+        Per-language syntax checks, secret-scan provider binding,
+        test-runner commands. Phase 5 Section 3.1.
+
+    # Third layer: verifier rule sets. Read-only boundary check ONLY
+    # (Phase 5 Section 8.4). The engine MUST NOT use these rules to
+    # compute its own verdicts -- that would collapse the verifier into
+    # the policy engine and violate Article IV.
+    - path: ".ai/policies/verifier-rules.yaml"
+      role: "verifier_boundary_check"
+      load_order: 3
+      ownership: "human_only"
+      access: "read_only_boundary"
+      description: >
+        Pyramid of Judgment configuration. The engine reads this ONLY
+        to assert that the verifier verdict set ({PASS,RETRY,NEEDS_HUMAN,DEAD})
+        does not silently collide with the policy verdict set
+        ({allow,deny,conditional,NEEDS_HUMAN}); the shared NEEDS_HUMAN
+        token is intentional. Phase 5 Section 8.4.
+
+    # Fourth layer: this file's sibling. The actor-action-target rules,
+    # forbidden_paths, secret patterns, critical gates, NEEDS_HUMAN triggers
+    # all live in trinity_policy.yaml (the human-authored Phase 5 deliverable
+    # this proposal is drafting the SHELL for). Phase 5 Section 3.1.
+    - path: ".ai/policies/trinity_policy.yaml"
+      role: "primary_rules"
+      load_order: 4
+      ownership: "human_only"
+      description: >
+        Actor-action-target rules, forbidden_paths, secret patterns,
+        Critical Gate declarations, NEEDS_HUMAN triggers.
+        The Phase 5 primary deliverable. Phase 5 Section 3.1.
+
+  # -------------------------------------------------------------------------
+  # Default verdict on any query that does not match a rule.
+  # Implements Article XVI verbatim ("Unknown authority MUST be treated as
+  # denied authority") -- Phase 5 spec Section 2.3.
+  #
+  # CHANGING THIS VALUE is a constitutional-tier amendment under
+  # Addendum v1.0.4 XXIX.3 and would itself violate Article XVI.
+  # -------------------------------------------------------------------------
+  default_verdict: "deny"
+  default_reason: "unknown_authority"
+
+  # -------------------------------------------------------------------------
+  # Verdict precedence (Phase 5 Section 2.2). Deny-wins, then human-gates,
+  # then conditional, then allow. This ordering is normative and MUST NOT
+  # be reordered without a constitutional-tier amendment.
+  # -------------------------------------------------------------------------
+  precedence:
+    - "deny"
+    - "NEEDS_HUMAN"
+    - "conditional"
+    - "allow"
+
+  # -------------------------------------------------------------------------
+  # Closed verdict set (Phase 5 Section 2.1). The Policy Engine MUST NOT
+  # return any verdict outside this four-element enumeration. Adding a
+  # fifth verdict is a constitutional violation under Article XVIII
+  # (Determinism Over Emergence).
+  # -------------------------------------------------------------------------
+  verdict_set:
+    - "allow"
+    - "deny"
+    - "conditional"
+    - "NEEDS_HUMAN"
+
+  # -------------------------------------------------------------------------
+  # Query API contract (Phase 5 Section 4). The engine accepts exactly one
+  # entry function: policy.query(envelope) -> verdict_envelope. Both shapes
+  # are schema-validated; the schema file is a sibling human-authored
+  # deliverable (this proposal includes a draft schema separately).
+  # -------------------------------------------------------------------------
+  query_api:
+    version: "v1"
+    schema: ".ai/schemas/policy_query_envelope.v1.yaml"
+    response_schema: ".ai/schemas/policy_query_envelope.v1.yaml#/components/schemas/VerdictEnvelope"
+    determinism_required: true   # Phase 5 Section 4.4
+    # Kernel MUST query before each of these action classes (Phase 5 Section 4.3).
+    must_query_before:
+      - "transition"
+      - "tool_invoke"
+      - "fs_read"
+      - "fs_write"
+      - "fs_delete"
+      - "net_outbound"
+      - "proc_exec"
+      - "policy_read"
+      - "policy_write"
+      - "ddd_propose"
+      - "ddd_decide"
+
+  # -------------------------------------------------------------------------
+  # Closed reason-code enumeration (Phase 5 Section 2.4). Every non-allow
+  # verdict carries one of these. Adding a new reason code is an
+  # operational-tier amendment under Article XXIX (Addendum v1.0.4 XXIX.2).
+  # -------------------------------------------------------------------------
+  reason_codes:
+    - "unknown_authority"          # default-deny per Article XVI
+    - "forbidden_path"             # target matches forbidden_paths glob
+    - "secret_pattern_detected"    # payload matches regex or entropy threshold
+    - "human_gate_required"        # Critical Gate triggered (Section 6)
+    - "illegal_actor"              # actor lacks declared authority
+    - "illegal_target"             # target outside actor's allowed surface
+    - "schema_invalid"             # query envelope failed schema validation
+    - "quota_exceeded"             # actor exceeded a declared quota
+    - "amendment_required"         # rule exists but is marked stale
+
+  # -------------------------------------------------------------------------
+  # Boundaries (forbidden mutation surfaces).
+  #
+  # These prefixes mirror CLAUDE.md "Forbidden writes" (root file) and the
+  # canonical enumeration in Phase 5 Section 7.1 / Section 3.2. The
+  # authoritative source is THIS engine -- if CLAUDE.md and this list
+  # diverge, this list wins (Article XXV: Canonical Policies > documentation).
+  #
+  # Per Phase 5 Section 7.2: "Forbidden trumps allowed." A path appearing
+  # below MUST be denied even if a sandbox profile or session-level
+  # plan_envelope.allowed_paths grant would otherwise permit it.
+  # The most-restrictive declaration wins (Article XVI).
+  # -------------------------------------------------------------------------
+  boundaries:
+    forbidden_mutation_paths:
+      - pattern: ".ai/policies/**"
+        rationale: "Article III + Article XIII -- policy is human-authored only."
+        applies_to_actors: ["ai", "tool", "transport"]
+        gate_id: "gate.policy_amendment"
+
+      - pattern: ".ai/audit/**"
+        rationale: >
+          Article X (audit chain immutability). Append is allowed via the
+          kernel-controlled emitter; modify / truncate / rewrite is forbidden.
+          This pattern denies fs_write/fs_delete; append is mediated by
+          the audit organ, not by direct fs_write.
+        applies_to_actors: ["ai", "tool", "transport", "human"]
+        action_kinds_denied: ["fs_write_overwrite", "fs_delete", "fs_truncate"]
+        gate_id: "gate.audit_truncation"
+
+      - pattern: ".ai/schemas/**"
+        rationale: >
+          Schemas are interface contracts; mutation by AI silently shifts
+          downstream validation and breaks the independence invariant
+          (Phase 5 Section 8). Human-only.
+        applies_to_actors: ["ai", "tool", "transport"]
+
+      - pattern: "docs/specs/**"
+        rationale: >
+          The spec corpus is the canonical contract layer. Spec edits go
+          through Article XXIX with explicit version bump.
+        applies_to_actors: ["ai", "tool", "transport"]
+
+      - pattern: "docs/constitution/**"
+        rationale: >
+          Constitutional documents. Edits require the full Article XXIX
+          six-step procedure plus operator commit.
+        applies_to_actors: ["ai", "tool", "transport"]
+        gate_id: "gate.constitution_amendment"
+
+    # Read access to boundaries above is permitted for the engine itself
+    # and for any actor with an explicit `policy.read` capability grant
+    # (Phase 5 Section 3.3). Read access is NEVER implicit.
+    read_access:
+      engine_can_read_all: true
+      actor_must_declare_capability: "policy.read"
+
+  # -------------------------------------------------------------------------
+  # Critical Gate declarations (Phase 5 Section 6.1).
+  # These are gate IDS only -- the actual trigger predicates live in the
+  # primary rule body of trinity_policy.yaml (which the operator authors
+  # by hand). Each gate maps to one or more Constitutional articles and
+  # always returns NEEDS_HUMAN -- never allow -- regardless of session
+  # state, actor authority, or sandbox profile.
+  # -------------------------------------------------------------------------
+  critical_gates:
+    - id: "gate.production_deploy"
+      anchor: "Article XIII"
+      description: "Any transition to: DEPLOY targeting non-local env."
+    - id: "gate.destructive_op"
+      anchor: "Article XIII"
+      description: "fs_delete, overwrite of tracked files in DO/prod/, or destructive proc_exec."
+    - id: "gate.external_publication"
+      anchor: "Article XIII"
+      description: "net_outbound to a host classified as publication surface."
+    - id: "gate.credential_change"
+      anchor: "Article XIII"
+      description: "fs_write to declared credential paths or credential-rotation binaries."
+    - id: "gate.privilege_escalation"
+      anchors: ["Article XIII", "Article XVI"]
+      description: "Any query attempting to expand authority.* flags in the bound profile."
+    - id: "gate.policy_amendment"
+      anchors: ["Article III", "Article XIII", "Article XXIX"]
+      description: "Any fs_write to .ai/policies/** from a non-human actor."
+    - id: "gate.audit_truncation"
+      anchors: ["Article X", "Article XIII", "Article XXIX"]
+      description: "Any attempt to mutate or truncate .ai/audit/events.ndjson."
+    - id: "gate.constitution_amendment"
+      anchor: "Article XXIX"
+      description: "Any fs_write to docs/constitution/** from a non-human actor."
+
+  # -------------------------------------------------------------------------
+  # Critical Gate timeout behaviour (Phase 5 Section 6.3).
+  # A gate with no decided_by: human envelope within the timeout MUST
+  # emit policy.gate_expired and the kernel MUST treat the action as
+  # DENIED -- never as auto-approved. Auto-approval on timeout is
+  # forbidden by Article XIII.
+  # -------------------------------------------------------------------------
+  gate_timeout:
+    default_minutes: 60
+    on_expiry_verdict: "deny"
+    on_expiry_reason: "human_gate_required"
+    on_expiry_audit_event: "policy.gate_expired"
+
+  # -------------------------------------------------------------------------
+  # Amendment protocol pin (Phase 5 Section 9 + Addendum v1.0.4).
+  # Every change to any file in `layered_files` follows the six-step
+  # procedure in Article XXIX. Tier classification (editorial /
+  # operational / constitutional) per Addendum v1.0.4 XXIX.1-3.
+  # -------------------------------------------------------------------------
+  amendment_protocol: "Article XXIX"
+  amendment_addendum: "TRINITY_CONSTITUTION_ADDENDUM_V1_0_4"
+  amendment_tiers:
+    - "editorial"        # XXIX.1 -- typo, ASCII normalization, no semantic change
+    - "operational"      # XXIX.2 -- new rule, threshold change, new forbidden glob
+    - "constitutional"   # XXIX.3 -- remove a Critical Gate, redefine default-deny
+  # Stale rule handling (Phase 5 Section 9.5). A rule whose last_reviewed
+  # is older than this threshold AND has not fired in the audit window
+  # is flagged at engine boot and returns deny/amendment_required when matched.
+  # Auto-deletion is forbidden (Article XX).
+  staleness:
+    threshold_days: 365
+    on_match_verdict: "deny"
+    on_match_reason: "amendment_required"
+
+  # -------------------------------------------------------------------------
+  # Audit emission (Phase 5 Section 5.3 + Section 9.4).
+  # Every policy verdict produces an append-only audit event in the
+  # existing chain at .ai/audit/events.ndjson. No parallel log, no
+  # separate chain. The engine emits the verdict envelope; the kernel
+  # is responsible for hash-chaining and append.
+  # -------------------------------------------------------------------------
+  audit_emission:
+    target: ".ai/audit/events.ndjson"
+    chain: "primary"          # uses existing audit chain (no parallel chain)
+    append_only: true
+    events:
+      on_allow: "policy.queried"           # informational; lightweight payload
+      on_deny: "policy.refused"            # full envelope per Section 5.3
+      on_needs_human: "policy.gate_required"
+      on_conditional: "policy.queried"     # conditional re-queries log on resolution
+      on_gate_expired: "policy.gate_expired"
+      on_amendment: "policy.amended.<tier>"  # tier in {editorial,operational,constitutional}
+      on_violation: "policy.violation_detected"  # boundary breach (Section 7.2)
+    # Forbidden-path refusals carry an extra field for retro inspection
+    # (Phase 5 Section 5.4 -- see memory anchor
+    # feedback_executor_helper_forbidden_writes_drift).
+    forbidden_path_event_extra_field: "forbidden_pattern"
+
+  # -------------------------------------------------------------------------
+  # Engine boot invariants (Phase 5 Section 3.4 + Section 8).
+  # The engine refuses to start if any of these checks fails. Boot
+  # failure is surfaced via stderr; the kernel does not launch.
+  # -------------------------------------------------------------------------
+  boot_invariants:
+    refuse_start_if_any_canonical_file_missing: true
+    refuse_start_if_any_canonical_file_malformed: true
+    refuse_start_if_version_frontmatter_missing: true
+    refuse_start_if_two_files_declare_same_rule_with_different_verdicts: true
+    require_independence_from_state_graph: true   # Section 8.1
+    require_independence_from_session_directory: true
+    require_independence_from_llm: true
+
+# =============================================================================
+# END OF DRAFT PROPOSAL
+#
+# Operator review checklist (Phase 5 Appendix B):
+#   [ ] Confirm the four canonical files in layered_files exist and are owned.
+#   [ ] Confirm default_verdict: "deny" matches Article XVI.
+#   [ ] Confirm forbidden_mutation_paths covers every operator-known surface.
+#   [ ] Confirm critical_gates list matches Phase 5 Section 6.1 enumeration.
+#   [ ] Confirm gate_timeout.on_expiry_verdict is "deny" (NOT "allow").
+#   [ ] Confirm amendment_protocol is pinned to "Article XXIX".
+#   [ ] Confirm audit_emission targets the primary chain (no parallel log).
+#   [ ] Confirm boot_invariants are all true.
+# After review, bump version, commit with decided_by: human envelope.
+# =============================================================================

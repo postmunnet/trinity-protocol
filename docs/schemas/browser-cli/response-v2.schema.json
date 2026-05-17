@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://browser-cli/schema/response-v2.schema.json",
+  "title": "Browser CLI v2 Response",
+  "type": "object",
+  "required": ["ok", "command", "data", "error", "error_code", "artifacts", "meta"],
+  "additionalProperties": false,
+  "properties": {
+    "ok": { "type": "boolean" },
+    "command": {
+      "type": "object",
+      "required": ["verb", "args"],
+      "properties": {
+        "verb": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "options": {
+          "type": "object",
+          "properties": {
+            "timeout_ms": { "type": "number" },
+            "retry": { "type": "number" }
+          }
+        }
+      }
+    },
+    "input": {
+      "type": ["object", "string", "null"],
+      "description": "Original input before parsing (raw DSL line or JSON)"
+    },
+    "data": {
+      "type": ["object", "array", "null"],
+      "description": "Command-specific payload. Shape varies by verb."
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Human-readable error message"
+    },
+    "error_code": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "UNKNOWN_COMMAND",
+        "PARSE_ERROR",
+        "ELEMENT_NOT_FOUND",
+        "TIMEOUT",
+        "NAVIGATION_FAILED",
+        "FILE_NOT_FOUND",
+        "AUTH_FAILED",
+        "POLICY_DENIED",
+        "HELPER_NOT_FOUND",
+        "CONFIG_INVALID",
+        "RUNTIME_ERROR"
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "path"],
+        "properties": {
+          "type": { "type": "string", "enum": ["screenshot", "download", "ajax-log", "console-log", "snapshot"] },
+          "path": { "type": "string" },
+          "size": { "type": "number" }
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["ts", "schema"],
+      "properties": {
+        "ts": { "type": "string", "description": "ISO 8601 timestamp" },
+        "schema": { "type": "string", "const": "v2" },
+        "profile": { "type": ["string", "null"] },
+        "session": {
+          "type": ["object", "null"],
+          "properties": {
+            "authenticated": { "type": "boolean" },
+            "profile": { "type": ["string", "null"] },
+            "user": { "type": ["string", "null"] }
+          }
+        },
+        "duration_ms": { "type": "number" },
+        "policy_tier": { "type": ["string", "null"], "enum": [null, "safe", "medium", "high"] },
+        "run_id": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

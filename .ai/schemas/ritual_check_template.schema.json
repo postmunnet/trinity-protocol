@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trinity.local/schemas/ritual_check_template.schema.json",
+  "title": "Trinity Ritual Check Template",
+  "description": "Declarative verification spec for a ritual. Authority: TRINITY_RITUAL_CONSTITUTION_V1_1_RC.md Article VI. One file per ritual at .ai/rituals/<ritual>/check.template.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "check_template_version",
+    "required_artifacts",
+    "required_headings",
+    "required_fields",
+    "required_evidence_refs",
+    "required_structural_predicates",
+    "required_phrases",
+    "forbidden_phrases",
+    "forbidden_actions",
+    "allowed_roles",
+    "forbidden_roles",
+    "state_transition",
+    "failure_behavior"
+  ],
+  "properties": {
+    "check_template_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Locked at 1.0 for RC v1.1-rc."
+    },
+    "required_artifacts": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Artifact paths (or path-templates) that MUST exist for the check to pass."
+    },
+    "required_headings": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Markdown headings required inside the ritual's write artifact."
+    },
+    "required_fields": {
+      "type": "object",
+      "additionalProperties": {"type": "string"},
+      "description": "Map of {artifact_path: required_field_or_jsonpath}. Field MUST be present in the artifact."
+    },
+    "required_evidence_refs": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Map of {evidence_key: spec} declaring which evidence references must accompany the ritual output."
+    },
+    "required_structural_predicates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["predicate", "required"],
+        "properties": {
+          "predicate": {"type": "string", "description": "Predicate expression in dotted-path form, e.g. 'memory_handling.mode == index'."},
+          "required": {"type": "boolean", "description": "If true, predicate failure -> BLOCK; if false -> WARN per failure_behavior.on_optional_failure."}
+        }
+      },
+      "description": "Article VI — SHOULD be preferred over brittle phrase matching."
+    },
+    "required_phrases": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Literal phrases that MUST appear (use sparingly; prefer structural predicates)."
+    },
+    "forbidden_phrases": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Literal phrases that MUST NOT appear in the artifact body."
+    },
+    "forbidden_actions": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Actions that MUST NOT be executed during ritual body."
+    },
+    "allowed_roles": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Roles permitted to write the ritual's artifact (Article XVIII)."
+    },
+    "forbidden_roles": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Roles explicitly forbidden to write the artifact (Article XVIII)."
+    },
+    "state_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["READY", "THINK", "PLAN", "SANDBOX", "EXECUTE", "VERIFY", "NEEDS_HUMAN", "PROMOTE", "DEPLOY", "RETRO", "DONE", "SEALED", "FAILED", "DEGRADED", "ABORTED", "REOPENED", "TERMINAL_FAILED"]},
+          "minItems": 1
+        },
+        "to": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["READY", "THINK", "PLAN", "SANDBOX", "EXECUTE", "VERIFY", "NEEDS_HUMAN", "PROMOTE", "DEPLOY", "RETRO", "DONE", "SEALED", "FAILED", "DEGRADED", "ABORTED", "REOPENED", "TERMINAL_FAILED"]},
+          "minItems": 1
+        }
+      }
+    },
+    "failure_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["on_missing_artifact", "on_missing_evidence", "on_forbidden_phrase", "on_optional_failure"],
+      "properties": {
+        "on_missing_artifact": {"type": "string", "enum": ["BLOCK", "WARN", "DEGRADED", "NEEDS_HUMAN", "FAILED", "TERMINAL_FAILED"]},
+        "on_missing_evidence": {"type": "string", "enum": ["BLOCK", "WARN", "DEGRADED", "NEEDS_HUMAN", "FAILED", "TERMINAL_FAILED"]},
+        "on_forbidden_phrase": {"type": "string", "enum": ["BLOCK", "WARN", "DEGRADED", "NEEDS_HUMAN", "FAILED", "TERMINAL_FAILED"]},
+        "on_optional_failure": {"type": "string", "enum": ["BLOCK", "WARN", "DEGRADED", "NEEDS_HUMAN", "FAILED", "TERMINAL_FAILED"]}
+      }
+    }
+  }
+}

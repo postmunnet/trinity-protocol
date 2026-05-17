@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trinity.local/schemas/artifact_manifest.schema.json",
+  "title": "Trinity Artifact Manifest",
+  "description": "Per-step manifest of artifacts produced by a single executor invocation. Cf. .ai/cli/core/executor.py ArtifactManifest dataclass. Consumed by Verifier (Phase 8 existence checks) and Audit (Phase 10 artifact-reference validation via scan_artifact_refs).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "session_id",
+    "step_id",
+    "artifacts",
+    "generated_at"
+  ],
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "const": "trinity.artifact_manifest.v1",
+      "description": "Version pin; bumped via Article XXIX when shape changes."
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Parent session id."
+    },
+    "step_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Step within the plan whose execution produced these artifacts."
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "bytes"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Project-root-relative path to the artifact."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "Lowercase hex SHA-256 of the artifact's bytes (canonical: sha256sum)."
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Artifact size in bytes."
+          },
+          "kind": {
+            "type": "string",
+            "description": "Optional taxonomy tag (e.g. 'diff', 'log', 'manifest', 'tool_calls')."
+          }
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 UTC timestamp of manifest write."
+    },
+    "lease_id": {
+      "type": ["string", "null"],
+      "description": "Optional back-reference to the ExecutionLease whose authority produced these artifacts."
+    }
+  }
+}

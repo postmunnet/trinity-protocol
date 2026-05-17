@@ -1,0 +1,65 @@
+{
+  "ritual": "nnn",
+  "version": "1.0",
+  "purpose": "Planning / verification-contract ritual: the Planning Agent proposes a bounded plan envelope (goal, tier, allowed/forbidden paths, steps, acceptance, rollback), a verification contract, and a risk assessment, so the workflow may transition THINK -> PLAN under Article XVII.",
+  "delegated_role": "Planning Agent",
+  "input_context": "context.schema.json",
+  "write_template": "write.template.md",
+  "check_template": "check.template.json",
+  "output_artifacts": [
+    "THINK/plan_envelope.json",
+    "THINK/02_SCOPE.md",
+    "THINK/03_ACCEPTANCE.md",
+    "THINK/03_ACCEPTANCE.yaml",
+    "THINK/verification_contract.json",
+    "THINK/risk_assessment.json",
+    "THINK/rollback.md",
+    ".state/nnn_pass"
+  ],
+  "required_checks": [
+    "artifact_exists:THINK/plan_envelope.json",
+    "artifact_exists:THINK/02_SCOPE.md",
+    "artifact_exists:THINK/03_ACCEPTANCE.md",
+    "artifact_exists:THINK/verification_contract.json",
+    "artifact_exists:THINK/risk_assessment.json",
+    "artifact_exists:THINK/rollback.md",
+    "artifact_exists:.state/nnn_pass",
+    "structural:plan_envelope.tier in [HOT,WARM,COLD]",
+    "structural:plan_envelope.allowed_paths.length >= 1",
+    "structural:plan_envelope.acceptance.length >= 1",
+    "structural:plan_envelope.rollback.length >= 1",
+    "headings_present:Scope,In Scope,Out of Scope,Constraints",
+    "forbidden_phrases_absent",
+    "role_allowed:Planning Agent",
+    "state_transition:THINK->PLAN"
+  ],
+  "forbidden_actions": [
+    "execute_code",
+    "mutate_DO_dev",
+    "mutate_DO_prod",
+    "modify_audit_chain",
+    "modify_canonical_policies",
+    "decide_verifier_verdict",
+    "self_certify_plan_pass",
+    "semantic_synthesis",
+    "auto_promote",
+    "skip_rollback_declaration",
+    "skip_acceptance_declaration"
+  ],
+  "allowed_current_states": ["THINK"],
+  "allowed_next_states": ["PLAN"],
+  "audit_events": [
+    "nnn.invoked",
+    "nnn.proposed",
+    "nnn.passed",
+    "nnn.failed",
+    "plan.budget_checked"
+  ],
+  "retry_policy": {
+    "max_retries": 3,
+    "retry_owner": "same_delegated_role",
+    "escalate_to": "NEEDS_HUMAN",
+    "preserve_failed_attempts": true,
+    "audit_each_attempt": true
+  }
+}

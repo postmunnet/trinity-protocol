@@ -1,0 +1,175 @@
+# Trinity Verifier Rules — Pyramid of Judgment
+# Spec ref: docs/specs/02_VERIFIER_SPEC.md
+#
+# 4-layer verdict resolution (D8):
+#   1. Deterministic rules    — fast, cheap, target 80% coverage
+#   2. Policy engine          — gate/safety/rbac evaluation
+#   3. Gated LLM judge        — last resort, audited, max 3/session
+#   4. Human                  — NEEDS_HUMAN escalation
+#
+# Verdicts (closed set): PASS, RETRY, NEEDS_HUMAN, DEAD
+#
+# Rule-set evaluation order (per layer 1, see cli/core/verifier.py):
+#   - step.force_verdict (fixture override) wins outright
+#   - dead_when         (first hit wins)
+#   - needs_human_when  (first hit wins)
+#   - retry_when        (first hit wins)
+#   - pass_when         (ALL must be truthy)
+#   - otherwise         fallback_verdict (default: RETRY)
+#
+# A "predicate" is a string name. The engine looks it up against the
+# evidence dict supplied by the caller. The engine never executes
+# arbitrary expressions.
+
+version: "1.0"
+
+verdicts:
+  - PASS
+  - RETRY
+  - NEEDS_HUMAN
+  - DEAD
+
+pyramid:
+  layer_1_deterministic:
+    description: "Fast rule-based checks (regex, schema, glob, ast)"
+    rules_file: .ai/policies/verifier-rules.yaml
+    coverage_target_pct: 80
+    rule_sets:
+      - step_complete
+      - code_change
+      - memory_promote
+
+  layer_2_policy:
+    description: "Policy engine — gates, safety, RBAC"
+    gates_file: .ai/policies/gates.yaml
+    safety_file: .ai/policies/safety.yaml
+    rbac_file: .ai/policies/rbac.yaml
+
+  layer_3_llm_judge:
+    description: "Gated LLM judge — last resort before human"
+    enabled: false              # opt-in per session, default off
+    audit_required: true
+    max_calls_per_session: 3
+    timeout_seconds: 60
+    fallback_verdict: NEEDS_HUMAN
+
+  layer_4_human:
+    description: "Human escalation"
+    verdict: NEEDS_HUMAN
+    timeout_minutes: 60
+    notify_channels: []         # populated when notification system lands
+
+# Resolution order: layer 1 -> 2 -> 3 -> 4. Stop at first decisive verdict.
+# "Decisive" = PASS, RETRY, DEAD. Anything ambiguous escalates.
+resolution:
+  order: [layer_1_deterministic, layer_2_policy, layer_3_llm_judge, layer_4_human]
+  on_unresolved: NEEDS_HUMAN
+
+# ─── Rule sets (Phase 4) ───────────────────────────────────────────
+verifier_rules:
+
+  # Default catch-all for any step without a specialized rule_set.
+  # Permissive on purpose — `step_done` defaults to True for steps
+  # that don't carry richer evidence, so the existing gogogo flow
+  # keeps producing PASS unless a step explicitly forces a worse
+  # verdict via force_verdict or supplies negative evidence.
+  step_complete:
+    description: "Generic step-done check; degrades to PASS when no negative evidence."
+    pass_when:
+      - step_done                # default-True; see step_complete.defaults
+    retry_when:
+      - test_failed
+      - missing_evidence
+    needs_human_when:
+      - unclear_intent
+      - production_write
+    dead_when:
+      - forbidden_pattern_found
+      - sandbox_violation
+      - retry_budget_exhausted
+    fallback_verdict: RETRY
+    # The engine doesn't evaluate `defaults` — gogogo injects it into
+    # the step dict before calling the verifier so step_done=True
+    # unless explicitly negated.
+    defaults:
+      step_done: true
+
+  # Code-change rule set per spec §3.3. Requires real evidence
+  # (test_result, diff scoped). Author plans / acceptance harnesses
+  # populate these fields before calling gogogo.
+  code_change:
+    description: "Verify code modifications"
+    pass_when:
+      - tests_pass
+      - diff_scope_allowed
+      - no_forbidden_pattern
+      - file_paths_within_sandbox
+    retry_when:
+      - test_failed
+      - missing_test_artifact
+      - transient_compile_error
+    needs_human_when:
+      - production_write
+      - schema_change
+      - api_breaking_change
+    dead_when:
+      - forbidden_pattern_found
+      - sandbox_violation
+      - retry_budget_exhausted
+    fallback_verdict: RETRY
+
+  # Browser-driven assertions (browser-cli evidence shape).
+  browser_check:
+    description: "Verify browser-based assertion"
+    pass_when:
+      - all_assertions_pass
+      - no_console_errors_critical
+      - http_status_ok
+    retry_when:
+      - selector_not_found
+      - transient_network_error
+      - element_not_yet_visible
+    needs_human_when:
+      - visual_mismatch_uncertain
+      - destructive_action_required
+      - captcha_appeared
+    dead_when:
+      - page_load_timeout
+      - persistent_404
+      - login_failure
+    fallback_verdict: RETRY
+
+  # Deployment outcome verification (used by Phase 5 ai ddd).
+  deploy_check:
+    description: "Verify deployment outcome"
+    pass_when:
+      - health_check_ok
+      - smoke_tests_pass
+      - no_critical_errors_in_log
+    retry_when:
+      - health_check_5xx_transient
+      - log_lag
+    needs_human_when:
+      - performance_degradation
+      - user_reported_issue
+    dead_when:
+      - rollback_required
+      - data_corruption_suspected
+    fallback_verdict: NEEDS_HUMAN
+
+  # Retro -> memory promotion (spec §3.3, paired with `ai rrr -> memory-cli learn`).
+  memory_promote:
+    description: "Verify retrospective before adding to memory"
+    pass_when:
+      - schema_valid
+      - confidence_ge_0_7
+      - has_evidence
+    retry_when:
+      - missing_frontmatter_field
+      - low_confidence_recoverable
+    needs_human_when:
+      - contradicts_existing_memory
+      - very_low_confidence
+    dead_when:
+      - schema_invalid_unrecoverable
+    fallback_verdict: RETRY

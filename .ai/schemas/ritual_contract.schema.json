@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trinity.local/schemas/ritual_contract.schema.json",
+  "title": "Trinity Ritual Contract",
+  "description": "Per-ritual declaratory contract. Authority: TRINITY_RITUAL_CONSTITUTION_V1_1_RC.md Article V. One file per ritual at .ai/rituals/<ritual>/ritual.contract.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ritual",
+    "version",
+    "purpose",
+    "delegated_role",
+    "input_context",
+    "write_template",
+    "check_template",
+    "output_artifacts",
+    "required_checks",
+    "forbidden_actions",
+    "allowed_current_states",
+    "allowed_next_states",
+    "audit_events",
+    "retry_policy"
+  ],
+  "properties": {
+    "ritual": {
+      "type": "string",
+      "enum": ["sss", "vvv", "nnn", "gogogo", "ddd", "rrr", "close"],
+      "description": "Canonical ritual name (Article VII registry)."
+    },
+    "version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Contract schema version; locked at 1.0 for RC v1.1-rc."
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 8,
+      "description": "One-sentence purpose statement."
+    },
+    "delegated_role": {
+      "type": ["string", "null"],
+      "description": "Role responsible for executing the ritual body. NULL = Kernel-only (no delegation)."
+    },
+    "input_context": {
+      "type": "string",
+      "description": "Path (relative to .ai/rituals/<ritual>/) of the context schema describing required inputs."
+    },
+    "write_template": {
+      "type": ["string", "null"],
+      "description": "Path (relative to .ai/rituals/<ritual>/) of the write template, or null if the ritual writes no body."
+    },
+    "check_template": {
+      "type": "string",
+      "description": "Path (relative to .ai/rituals/<ritual>/) of the check template."
+    },
+    "output_artifacts": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "description": "Artifacts the ritual MUST produce on success (paths or path-templates)."
+    },
+    "required_checks": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Named check predicates that must run during verification."
+    },
+    "forbidden_actions": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Actions explicitly forbidden inside this ritual (e.g. 'modify_audit_chain', 'semantic_synthesis')."
+    },
+    "allowed_current_states": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["READY", "THINK", "PLAN", "SANDBOX", "EXECUTE", "VERIFY", "NEEDS_HUMAN", "PROMOTE", "DEPLOY", "RETRO", "DONE", "SEALED", "FAILED", "DEGRADED", "ABORTED", "REOPENED", "TERMINAL_FAILED"]},
+      "minItems": 1,
+      "description": "States in which the ritual may be invoked (Article XVII)."
+    },
+    "allowed_next_states": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["READY", "THINK", "PLAN", "SANDBOX", "EXECUTE", "VERIFY", "NEEDS_HUMAN", "PROMOTE", "DEPLOY", "RETRO", "DONE", "SEALED", "FAILED", "DEGRADED", "ABORTED", "REOPENED", "TERMINAL_FAILED"]},
+      "minItems": 1,
+      "description": "States the ritual may transition to on success (Article XVII)."
+    },
+    "audit_events": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "description": "Event types this ritual MUST emit. At minimum: <ritual>.invoked.",
+      "contains": {
+        "type": "string",
+        "pattern": "\\.invoked$"
+      }
+    },
+    "retry_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_retries", "retry_owner", "escalate_to", "preserve_failed_attempts", "audit_each_attempt"],
+      "properties": {
+        "max_retries": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Article XV — capped at 3."},
+        "retry_owner": {"type": "string", "description": "Role that owns retry attempts; typically 'same_delegated_role'."},
+        "escalate_to": {"type": "string", "enum": ["NEEDS_HUMAN", "FAILED", "TERMINAL_FAILED"], "description": "Where to escalate after max_retries."},
+        "preserve_failed_attempts": {"type": "boolean", "description": "Article XV — failed attempts must be retained as artifacts."},
+        "audit_each_attempt": {"type": "boolean", "description": "Article XV — each attempt must emit audit."}
+      }
+    }
+  }
+}

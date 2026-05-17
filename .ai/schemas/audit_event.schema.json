@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trinity.local/schemas/audit_event.schema.json",
+  "title": "Trinity Audit Event (RecordProxy v1)",
+  "description": "Authoritative shape for a single row in the per-session SQLite audit_events table written by AuditWriter (RecordProxy v1). 13 fields total (11 required + 2 optional). Mirrors recordproxy/schemas.py + capture_store.py SQLite DDL @ commit 4a6fd80. See docs/specs/TRINITY_AUDIT_EVENT_SPEC_V1.md §2 for prose. The legacy .ai/audit/events.ndjson 5-field shape is preserved separately in .ai/schemas/events.schema.json (Audit Spec §2.2 legacy/export compatibility).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "session_id",
+    "seq",
+    "event_type",
+    "actor",
+    "ts_utc",
+    "payload_json",
+    "payload_hash",
+    "prev_hash",
+    "hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "trinity.audit_event.v1",
+      "description": "Schema version constant per recordproxy/schemas.py AUDIT_EVENT_SCHEMA_VERSION. DESIGN.md §16 invariant: 'No schema_version = invalid system artifact.' Future versions require Article XXIX Addendum."
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^evt_[0-9a-f]{32}$",
+      "description": "Per-event UUID4 hex; matches AuditWriter._event_id() pattern at audit_writer.py:21-22."
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Owning session ID."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Session-scoped monotonic sequence. Claimed by AuditWriter under BEGIN IMMEDIATE per audit_writer.py:57-69. UNIQUE(session_id, seq) per capture_store.py:70."
+    },
+    "event_type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical event-type name from TRINITY_AUDIT_EVENT_SPEC_V1 §3 registry (kernel + RecordProxy unified namespace). Legacy aliases per §3.1 accepted by readers."
+    },
+    "ritual": {
+      "type": ["string", "null"],
+      "description": "Originating ritual when applicable: sss/vvv/nnn/gogogo/ddd/rrr/close. Null for cross-ritual events (e.g. graph.transition, llm.*)."
+    },
+    "capture_id": {
+      "type": ["string", "null"],
+      "description": "ULID linking to a captures.capture_id row when the event was produced inside a capture transaction. Null when the event has no enclosing capture (e.g. session.created, sandbox.profile.bound)."
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who produced the event: kernel / agent:<name> / tool:<name> / human."
+    },
+    "ts_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 UTC timestamp. AuditWriter writes ISO Z form per capture_store.py:86-87."
+    },
+    "payload_json": {
+      "type": "string",
+      "description": "Canonicalised JSON body (sort_keys=True, separators=(',',':')). String type because the SQLite column is TEXT (capture_store.py:66) — the canonical form is the storage form, not a re-encoded object."
+    },
+    "payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 hex of payload_json bytes (UTF-8). Per audit_writer.py:25-26."
+    },
+    "prev_hash": {
+      "type": "string",
+      "pattern": "^(0|[0-9a-f]{64})$",
+      "description": "Previous event's hash. Genesis = '0' per audit_writer.py:18 GENESIS_PREV_HASH."
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 hex of canonical_json(event_for_hash). event_for_hash includes {event_id, schema_version, session_id, seq, event_type, ritual, capture_id, actor, ts_utc, payload_hash, prev_hash} — does NOT include payload_json itself (payload_hash represents it). Per audit_writer.py:71-86 and TRINITY_AUDIT_EVENT_SPEC_V1 §2.1."
+    }
+  }
+}

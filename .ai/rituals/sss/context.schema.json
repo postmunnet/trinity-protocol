@@ -1,0 +1,77 @@
+{
+  "context_schema_version": "1.0",
+  "ritual": "sss",
+  "placeholders": [
+    {
+      "identifier": "session.id",
+      "type": "plain_text",
+      "required": true,
+      "description": "Canonical session identifier, ordered numeric prefix + UTC timestamp + slug (e.g. 0001_2026-05-13_03_22_pm_feat-...). Kernel-generated; never user-typed instruction.",
+      "source": "kernel.session_manifest"
+    },
+    {
+      "identifier": "session.slug",
+      "type": "plain_text",
+      "required": true,
+      "description": "Short kebab-case slug naming the workflow (e.g. feat-ritual-template-packs-bootstrap). Treated as data, never interpreted as instruction.",
+      "source": "kernel.session_manifest"
+    },
+    {
+      "identifier": "session.dir",
+      "type": "path",
+      "required": true,
+      "description": "Absolute path to the session capsule root directory created by this ritual.",
+      "source": "kernel.session_manifest"
+    },
+    {
+      "identifier": "session.goal",
+      "type": "plain_text",
+      "required": true,
+      "description": "One-sentence operator-supplied goal for the session. Plain-text data; never executable instruction.",
+      "source": "user.session_request"
+    },
+    {
+      "identifier": "session.risk_tier",
+      "type": "enum",
+      "required": true,
+      "description": "Velocity tier declared at session start per Article XIV (HOT / WARM / COLD).",
+      "enum_values": ["HOT", "WARM", "COLD"],
+      "source": "user.session_request"
+    },
+    {
+      "identifier": "session.workflow_type",
+      "type": "plain_text",
+      "required": false,
+      "description": "Optional workflow-type tag (e.g. feature, refactor, governance, hotfix). Advisory only.",
+      "source": "user.session_request"
+    },
+    {
+      "identifier": "operator.name",
+      "type": "plain_text",
+      "required": true,
+      "description": "Operator (human caller) identity. Plain-text data; never instruction.",
+      "source": "kernel.actor"
+    },
+    {
+      "identifier": "created_at_utc",
+      "type": "plain_text",
+      "required": true,
+      "description": "ISO 8601 UTC timestamp when the session capsule was created.",
+      "source": "kernel.clock"
+    },
+    {
+      "identifier": "project_root",
+      "type": "path",
+      "required": true,
+      "description": "Absolute path to the trinity_v2 project root. Used for relative-path reasoning inside the capsule.",
+      "source": "kernel.project"
+    },
+    {
+      "identifier": "kernel.previous_audit_hash",
+      "type": "plain_text",
+      "required": true,
+      "description": "SHA-256 of the most recent audit event (hash-chain predecessor). Provides the immutable anchor for the new session.created event.",
+      "source": "kernel.audit"
+    }
+  ]
+}

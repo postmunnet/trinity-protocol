@@ -1,0 +1,195 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trinity.local/schemas/sandbox_profile.schema.json",
+  "title": "Trinity Sandbox Profile",
+  "description": "Capability declaration for a sandboxed Trinity session actor. Authoritative shape; see docs/specs/TRINITY_SANDBOX_CAPABILITY_SPEC_V1.md for prose. Rank-5 workflow contract per Constitution Article XXV. RecordProxy-aligned: §2.1 fs.delete_roots, §2.3 proc.spawn_allowed, §2.5 authority.ddd_propose_allowed, §2.6 audit.read_allowed + policy.read_allowed axes added (all optional for backward compatibility with existing v1 profiles).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "fs", "net", "proc", "tools", "authority"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,64}$",
+      "description": "Profile identifier; lowercase letters, digits, underscore, dash; 1..64 chars."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
+      "description": "Semver-ish (MAJOR.MINOR[.PATCH])."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "fs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_roots", "write_roots", "forbidden_paths"],
+      "properties": {
+        "read_roots": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Repo-relative directory roots the actor MAY read. Empty array = no FS read."
+        },
+        "write_roots": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Repo-relative directory roots the actor MAY write. Empty array = read-only."
+        },
+        "delete_roots": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "default": [],
+          "description": "Repo-relative directory roots the actor MAY delete files in. Empty array = no FS delete (default). Enforced as strict subset of write_roots. Maps to Tool capability fs.delete (TRINITY_TOOL_CAPABILITY_MODEL_V1 §2.1). Added in RecordProxy alignment v2."
+        },
+        "forbidden_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Glob patterns the actor MUST NOT touch, even if otherwise covered by read/write/delete roots. Forbidden trumps allowed."
+        },
+        "max_bytes_per_file": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Reject writes larger than this; 0 = no per-file limit."
+        },
+        "max_total_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Reject the session if cumulative writes exceed; 0 = no total limit."
+        }
+      }
+    },
+    "net": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outbound"],
+      "properties": {
+        "outbound": {
+          "type": "string",
+          "enum": ["denied", "allowlist", "open"],
+          "description": "'denied' is the default for COLD-tier rituals."
+        },
+        "allowlist": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "default": [],
+          "description": "Required iff outbound == 'allowlist'. Hostname patterns; no wildcards inside a single label."
+        },
+        "protocols": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "default": [],
+          "description": "E.g. ['https']. Other protocols denied."
+        }
+      }
+    },
+    "proc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_binaries", "forbidden_binaries"],
+      "properties": {
+        "allowed_binaries": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Whitelist of binaries the actor MAY exec. Empty array = no exec."
+        },
+        "spawn_allowed": {
+          "type": "boolean",
+          "default": false,
+          "description": "If false, actor MUST NOT spawn detached/background subprocesses (only synchronous exec). Maps to Tool capability proc.spawn (TRINITY_TOOL_CAPABILITY_MODEL_V1 §2.1). Added in RecordProxy alignment v2."
+        },
+        "forbidden_binaries": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Hard-denied even if otherwise allowed."
+        },
+        "max_wallclock_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Reject any single command beyond this limit; 0 = no limit."
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed", "forbidden"],
+      "properties": {
+        "allowed": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Tool contract IDs the actor MAY invoke. Empty array = no tool invocation."
+        },
+        "forbidden": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Tool contract IDs hard-denied even if otherwise allowed."
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["may_promote", "may_deploy", "may_modify_policies"],
+      "properties": {
+        "may_promote": {
+          "type": "boolean",
+          "default": false,
+          "description": "If false, actor MUST NOT issue a ddd-promote (Article XIII)."
+        },
+        "may_deploy": {
+          "type": "boolean",
+          "default": false,
+          "description": "If false, actor MUST NOT trigger deploy (Article XIII)."
+        },
+        "may_modify_policies": {
+          "type": "boolean",
+          "default": false,
+          "description": "If false, actor MUST NOT write to .ai/policies/**. Per Article III this is false for all AI actors."
+        },
+        "ddd_propose_allowed": {
+          "type": "boolean",
+          "default": false,
+          "description": "If false, actor MUST NOT emit a ddd.packet_emitted event. Maps to Tool capability ddd.propose (TRINITY_TOOL_CAPABILITY_MODEL_V1 §2.1). Note: ddd.decide is human-only per Article XIII and not representable as a sandbox grant. Added in RecordProxy alignment v2."
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional audit-access axis. Added in RecordProxy alignment v2 (TRINITY_SANDBOX_CAPABILITY_SPEC_V1 §2.6).",
+      "properties": {
+        "read_allowed": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, actor MAY read .ai/audit/events.ndjson and per-session <session>/CAPTURE/capture.sqlite audit_events table. Maps to Tool capability audit.read. Writes are kernel-only (audit.append is never tool-granted)."
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional policy-access axis. Added in RecordProxy alignment v2 (TRINITY_SANDBOX_CAPABILITY_SPEC_V1 §2.6).",
+      "properties": {
+        "read_allowed": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, actor MAY read .ai/policies/**. Maps to Tool capability policy.read. Writes to .ai/policies/** are governed by authority.may_modify_policies (Article III)."
+        }
+      }
+    }
+  }
+}

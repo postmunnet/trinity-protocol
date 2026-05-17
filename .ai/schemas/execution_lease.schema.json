@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trinity.local/schemas/execution_lease.schema.json",
+  "title": "Trinity Execution Lease",
+  "description": "Kernel-issued authority token for a single executor invocation. Cf. .ai/cli/core/executor.py ExecutionLease dataclass and TRINITY_ORGAN_MAP_V1.md §6. Article XVI Least Authority: the lease pins step scope + allowed paths + audit-event closure so the executor cannot widen its authority surface during execution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "lease_id",
+    "session_id",
+    "step_id",
+    "granted_at",
+    "expires_at",
+    "allowed_paths",
+    "allowed_audit_event_types",
+    "required_artifacts",
+    "decided_by"
+  ],
+  "properties": {
+    "lease_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ULID-shaped opaque identifier; unique per session."
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Parent session id (matches .ai/sessions/<sid>)."
+    },
+    "step_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Step identifier within the plan (e.g. 'S1', 'S2'). Lease authority is scoped to this single step — Article XVI."
+    },
+    "granted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 UTC issue timestamp."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 UTC hard deadline. Executor MUST stop work after expiry; lease re-issue requires explicit Kernel transition."
+    },
+    "allowed_paths": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true,
+      "description": "Strict allowlist of filesystem paths the executor may write during this lease (relative to project root). Sandbox profile (Phase 7) enforces at IO time."
+    },
+    "allowed_audit_event_types": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true,
+      "description": "Subset of TRINITY_AUDIT_EVENT_SPEC_V1 §3 registry the executor is permitted to cause-to-be-emitted during this lease. Default: ALLOWED_AUDIT_EVENT_TYPES from executor.py."
+    },
+    "required_artifacts": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true,
+      "minItems": 1,
+      "description": "Artifact filenames the executor MUST produce by lease expiry. Default: REQUIRED_OUTPUT_ARTIFACTS (4-file canonical set)."
+    },
+    "sandbox_profile_ref": {
+      "type": ["string", "null"],
+      "description": "Optional path to the Phase 7 sandbox profile JSON binding this lease."
+    },
+    "decided_by": {
+      "type": "string",
+      "const": "kernel",
+      "description": "Pinned to 'kernel' — leases are kernel-issued (Article XV: only Authority organs grant authority). The executor MUST NOT mint its own lease."
+    }
+  }
+}

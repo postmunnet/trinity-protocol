@@ -1,0 +1,29 @@
+# Trinity Loop Budget
+# Spec ref: docs/specs/03_GOAL_LOOP_SPEC.md §7 (Budget enforcement)
+#
+# Hard caps to prevent runaway loops. Exceeding any cap escalates to NEEDS_HUMAN (D11).
+# Defaults aim for typical session sizes; override per-graph as needed.
+
+version: "1.0"
+
+default_budget:
+  max_iterations: 20            # max kernel loop turns per session
+  max_duration_minutes: 30      # wall clock from session start
+  max_tool_calls: 100           # cumulative across all tools
+  checkpoint_every: 5           # auto-snapshot every N iterations
+
+escalation:
+  on_iterations_exceeded: NEEDS_HUMAN
+  on_duration_exceeded: NEEDS_HUMAN
+  on_tool_calls_exceeded: NEEDS_HUMAN
+  notify_human: true
+
+# Per-graph overrides (graph name -> partial budget)
+overrides: {}
+# Example:
+#   overrides:
+#     deploy:
+#       max_iterations: 10
+#       max_duration_minutes: 60   # deploys can take longer
+#     standard:
+#       max_tool_calls: 200

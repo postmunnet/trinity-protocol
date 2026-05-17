@@ -1,0 +1,83 @@
+# Trinity Protocol - Single Source of Truth (SSOT)
+# This file is the canonical source for all system paths and versions.
+# It is read by the ai-cli orchestrator at startup.
+# Note: project_root is auto-detected at runtime; the value below is a placeholder.
+version: "1.0"
+
+paths:
+  # Absolute path to the project root.
+  # This is dynamically detected by the CLI at runtime.
+  # The placeholder below will be overridden.
+  project_root: "."
+
+  # .ai HQ paths
+  ai_root: "${project_root}/.ai"
+  policies: "${ai_root}/policies"
+  schemas: "${ai_root}/schemas"
+  templates: "${ai_root}/templates"
+  memory: "${ai_root}/memory"
+  sessions: "${ai_root}/sessions"
+  active_session: "${sessions}/active"
+  archive_sessions: "${sessions}/archive"
+  state: "${ai_root}/state"  # Global state (matches actual folder)
+  audit: "${ai_root}/audit" # Global audit
+  logs: "${ai_root}/logs"
+  cli: "${ai_root}/cli"
+
+deploy:
+  dev:
+    type: "local_copy"
+    path: "${project_root}/.ai/deploy/dev"
+  prod:
+    type: "local_copy"
+    path: "${project_root}/.ai/deploy/prod"
+
+# Versioning for policies and schemas to ensure compatibility.
+versions:
+  safety_policy: "1.0"
+  gates_policy: "1.0"
+  rbac_policy: "1.0"
+  session_state_schema: "1.0"
+  events_schema: "1.0"
+
+hooks:
+  build:
+    - "echo Building project (sample hook)"
+  test:
+    - "echo Running tests (sample hook)"
+
+# Runtime sandbox configuration.
+# Default off for agent-hosted workflows such as Codex, where the harness
+# already runs inside its own sandbox and macOS sandbox-exec cannot be nested.
+# Set runtime_enforcement_enabled: true when running Trinity directly from a
+# normal terminal and you want OS-level fs/net/proc enforcement for sandbox
+# profiles.
+sandbox:
+  runtime_enforcement_enabled: false
+
+# Session folder naming rules.
+# Final format (24-hour, lowercase am/pm):
+#   {seq:04d}_{date}_{HH}_{MM}_{ampm}_{type}-{slug}
+# Example:
+#   0001_2026-04-20_15_21_pm_feat-v2-plan-implementation
+session_naming:
+  format: "{seq:04d}_{date}_{hour}_{minute}_{ampm}_{type}-{slug}"
+  seq_mode: "global"              # global | per_day | none
+  seq_padding: 4                  # 4 digits -> 0001..9999
+  date_format: "%Y-%m-%d"
+  hour_format: "%H"               # 24-hour (00..23)
+  minute_format: "%M"             # 00..59
+  ampm_lowercase: true            # am/pm (lowercase)
+  timezone: "local"               # local | utc
+  slug_max_length: 40
+  slug_separator: "-"             # inside type-slug and slug body
+  block_separator: "_"            # between blocks (seq/date/hour/minute/ampm/type-slug)
+  default_type: "feat"
+  allowed_types:
+    - feat        # new feature
+    - fix         # bug fix
+    - refactor    # code cleanup / restructure
+    - docs        # documentation
+    - chore       # misc / maintenance
+    - spike       # prototype / research
+    - ops         # deploy / infra

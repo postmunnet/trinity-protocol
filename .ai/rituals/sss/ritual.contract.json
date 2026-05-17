@@ -1,0 +1,50 @@
+{
+  "ritual": "sss",
+  "version": "1.0",
+  "purpose": "Session initialization ritual: mechanically create the session capsule directory tree (THINK/, SANDBOX/, DO/dev/, DO/prod/, DO/snapshot/, CONTROL/, .ai/state/) and emit session.created so the workflow may transition READY -> THINK.",
+  "delegated_role": "Session Initializer",
+  "input_context": "context.schema.json",
+  "write_template": "write.template.md",
+  "check_template": "check.template.json",
+  "output_artifacts": [
+    "{{session.dir}}/THINK/",
+    "{{session.dir}}/SANDBOX/",
+    "{{session.dir}}/DO/dev/",
+    "{{session.dir}}/DO/prod/",
+    "{{session.dir}}/DO/snapshot/",
+    "{{session.dir}}/CONTROL/",
+    "{{session.dir}}/.ai/state/",
+    "{{session.dir}}/CONTROL/META.json",
+    "{{session.dir}}/THINK/00_CONTEXT.md"
+  ],
+  "required_checks": [
+    "session_directory_tree_exists",
+    "control_meta_json_well_formed",
+    "session_id_matches_canonical_pattern",
+    "no_cross_session_writes",
+    "audit_chain_append_only"
+  ],
+  "forbidden_actions": [
+    "write_to_other_session_directory",
+    "modify_audit_chain",
+    "modify_canonical_policies",
+    "semantic_synthesis",
+    "self_trigger",
+    "memory_learn",
+    "auto_pin",
+    "decide_workflow_meaning"
+  ],
+  "allowed_current_states": ["READY"],
+  "allowed_next_states": ["THINK"],
+  "audit_events": [
+    "sss.invoked",
+    "session.created"
+  ],
+  "retry_policy": {
+    "max_retries": 0,
+    "retry_owner": "same_delegated_role",
+    "escalate_to": "NEEDS_HUMAN",
+    "preserve_failed_attempts": true,
+    "audit_each_attempt": true
+  }
+}
