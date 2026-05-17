@@ -1,5 +1,9 @@
-PyYAML>=6.0,<7
-typer>=0.21,<0.22
-rich>=14.2,<15
-jsonschema>=4.25,<5
-pytest>=8.4,<9
+PyYAML==6.0.3
+typer==0.21.1
+rich==14.2.0
+click==8.1.8
+shellingham==1.5.4
+markdown-it-py==3.0.0
+Pygments==2.19.2
+jsonschema==4.25.1
+pytest==8.4.2
