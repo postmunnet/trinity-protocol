@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Trinity Agent Wrapper — mirror of `.ai/cli/ai` for in-house agents
+#
+# Invokes `python3 -m cli.agents.<agent_name> [args...]` from any cwd.
+# Runs the `cd .ai/` step inside this subprocess so the caller's shell
+# cwd is never touched (closes the cwd-drift gap documented in memory
+# `feedback_bash_cwd_persists_kernel_vs_agent`).
+#
+# Usage:
+#   bash .ai/cli/agent <agent_name> [args...]
+#
+# Bridge to Phase 9 trinity-shell (`docs/specs/07_SHIM_SPEC.md` §3).
+
+set -euo pipefail
+
+usage() {
+    cat <<'USAGE'
+Trinity agent wrapper
+
+Usage:
+  bash .ai/cli/agent <agent_name> [args...]
+  bash .ai/cli/agent --list
+  bash .ai/cli/agent --help
+
+Examples:
+  bash .ai/cli/agent clarification_helper draft \
+      --session-path .ai/sessions/<sid> "task description"
+  bash .ai/cli/agent plan_helper draft --session-path .ai/sessions/<sid>
+  bash .ai/cli/agent executor_helper draft \
+      --session-path .ai/sessions/<sid> --step-id S1
+
+Advanced (direct module invocation):
+  cd .ai && python3 -m cli.agents.<agent_name> [args]
+USAGE
+}
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+AI_ROOT="$(dirname "$SCRIPT_DIR")"
+AGENTS_DIR="$AI_ROOT/cli/agents"
+
+list_agents() {
+    if [ ! -d "$AGENTS_DIR" ]; then
+        echo "agent: agents directory not found at $AGENTS_DIR" >&2
+        return 2
+    fi
+    for d in "$AGENTS_DIR"/*/; do
+        name="$(basename "$d")"
+        case "$name" in
+            __*) continue ;;
+        esac
+        [ -f "$d/__main__.py" ] && echo "$name"
+    done
+}
+
+if [ $# -lt 1 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+if [ "${1:-}" = "--list" ]; then
+    list_agents
+    exit 0
+fi
+
+AGENT_NAME="$1"
+shift
+
+if [ ! -d "$AGENTS_DIR/$AGENT_NAME" ] || [ ! -f "$AGENTS_DIR/$AGENT_NAME/__main__.py" ]; then
+    echo "agent: unknown agent '$AGENT_NAME'" >&2
+    echo "Available agents:" >&2
+    list_agents | sed 's/^/  /' >&2
+    exit 2
+fi
+
+cd "$AI_ROOT"
+exec python3 -m "cli.agents.$AGENT_NAME" "$@"

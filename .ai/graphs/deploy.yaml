@@ -1,0 +1,60 @@
+# Trinity Deploy Subgraph
+# Spec ref: docs/specs/04_GRAPH_SPEC.md §6 (Deploy gates)
+#
+# Promotes artifacts from DO/dev -> DO/prod with human approval at every gate.
+# All prod-touching transitions require decided_by: human (D2 boundary).
+
+version: "1.0"
+name: deploy
+description: "Deploy lifecycle: VERIFIED -> PRE_DEPLOY -> DEPLOYING -> DEPLOYED -> POST_DEPLOY"
+
+states:
+  - VERIFIED
+  - PRE_DEPLOY
+  - DEPLOYING
+  - DEPLOYED
+  - POST_DEPLOY
+  - DEPLOY_FAILED
+  - ROLLED_BACK
+
+initial_state: VERIFIED
+terminal_states: [POST_DEPLOY, ROLLED_BACK]
+
+transitions:
+  - from: VERIFIED
+    to: PRE_DEPLOY
+    trigger: ddd
+    decided_by: policy
+
+  - from: PRE_DEPLOY
+    to: DEPLOYING
+    trigger: deploy_approve
+    decided_by: human
+    require_human_approval: true
+
+  - from: DEPLOYING
+    to: DEPLOYED
+    trigger: deploy_complete
+    decided_by: verifier
+
+  - from: DEPLOYING
+    to: DEPLOY_FAILED
+    trigger: deploy_error
+    decided_by: kernel
+
+  - from: DEPLOYED
+    to: POST_DEPLOY
+    trigger: smoke_pass
+    decided_by: verifier
+
+  - from: DEPLOY_FAILED
+    to: ROLLED_BACK
+    trigger: rollback_complete
+    decided_by: human
+    require_human_approval: true
+
+  - from: DEPLOYED
+    to: ROLLED_BACK
+    trigger: rollback_request
+    decided_by: human
+    require_human_approval: true

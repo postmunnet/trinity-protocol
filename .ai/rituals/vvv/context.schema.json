@@ -1,0 +1,62 @@
+{
+  "context_schema_version": "1.0",
+  "ritual": "vvv",
+  "placeholders": [
+    {
+      "identifier": "session.slug",
+      "type": "plain_text",
+      "required": true,
+      "description": "Active session slug (e.g. 'feat-ritual-template-packs-bootstrap'). Sourced from session META.",
+      "source": "session.meta.slug"
+    },
+    {
+      "identifier": "operator.name",
+      "type": "plain_text",
+      "required": true,
+      "description": "Human operator name who answered the 5 questions. Used in attribution header.",
+      "source": "session.meta.operator"
+    },
+    {
+      "identifier": "vvv.proposed_at_utc",
+      "type": "plain_text",
+      "required": true,
+      "description": "ISO-8601 UTC timestamp recording when the 5 questions were emitted to the operator.",
+      "source": "audit.vvv.proposed.ts_utc"
+    },
+    {
+      "identifier": "answer.q1_goal",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Operator's answer to Q1 (Goal): one-sentence description of what success looks like. Escaped so user input is data, never instruction.",
+      "source": "user.answer.q1"
+    },
+    {
+      "identifier": "answer.q2_scope",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Operator's answer to Q2 (Scope): what is explicitly in scope and what is out.",
+      "source": "user.answer.q2"
+    },
+    {
+      "identifier": "answer.q3_constraint",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Operator's answer to Q3 (Constraint): what cannot be touched (policies, boundary docs, forbidden paths).",
+      "source": "user.answer.q3"
+    },
+    {
+      "identifier": "answer.q4_acceptance",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Operator's answer to Q4 (Acceptance): measurable signal that proves 'done'.",
+      "source": "user.answer.q4"
+    },
+    {
+      "identifier": "answer.q5_risk",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Operator's answer to Q5 (Risk): most likely failure mode and mitigation.",
+      "source": "user.answer.q5"
+    }
+  ]
+}

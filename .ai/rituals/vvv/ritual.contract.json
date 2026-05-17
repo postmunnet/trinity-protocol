@@ -1,0 +1,51 @@
+{
+  "ritual": "vvv",
+  "version": "1.0",
+  "purpose": "Clarification gate — operator and AI verify shared understanding via 5 questions (Goal/Scope/Constraint/Acceptance/Risk) before planning.",
+  "delegated_role": "Clarification Agent",
+  "input_context": "context.schema.json",
+  "write_template": "write.template.md",
+  "check_template": "check.template.json",
+  "output_artifacts": [
+    "THINK/01_PROMPT.md",
+    ".state/vvv_pass"
+  ],
+  "required_checks": [
+    "artifact_exists:THINK/01_PROMPT.md",
+    "artifact_exists:.state/vvv_pass",
+    "headings_present:Q1..Q5",
+    "structural:answers.count == 5",
+    "structural:answers.q1_goal.length >= 8",
+    "structural:answers.q2_scope.length >= 8",
+    "structural:answers.q3_constraint.length >= 8",
+    "structural:answers.q4_acceptance.length >= 8",
+    "structural:answers.q5_risk.length >= 8",
+    "forbidden_phrases_absent",
+    "role_allowed:Clarification Agent",
+    "state_transition:THINK->THINK"
+  ],
+  "forbidden_actions": [
+    "synthesize_answers_without_operator_input",
+    "modify_audit_chain",
+    "modify_policies",
+    "decide_gate_verdict",
+    "skip_any_of_five_questions",
+    "semantic_synthesis",
+    "auto_pass_on_missing_answer"
+  ],
+  "allowed_current_states": ["THINK"],
+  "allowed_next_states": ["THINK"],
+  "audit_events": [
+    "vvv.invoked",
+    "vvv.proposed",
+    "vvv.passed",
+    "vvv.failed"
+  ],
+  "retry_policy": {
+    "max_retries": 3,
+    "retry_owner": "same_delegated_role",
+    "escalate_to": "NEEDS_HUMAN",
+    "preserve_failed_attempts": true,
+    "audit_each_attempt": true
+  }
+}

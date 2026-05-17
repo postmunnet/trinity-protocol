@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trinity.local/schemas/hold.schema.json",
+  "title": "Trinity DDD Hold",
+  "description": "Operator hold (wait) on a decision_packet. See docs/specs/TRINITY_DDD_HUMAN_GATE_SPEC_V1.md §6.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["packet_id", "decided_by", "decided_at", "action", "until"],
+  "properties": {
+    "packet_id": { "type": "string", "minLength": 1 },
+    "decided_by": { "type": "string", "const": "human" },
+    "decided_at": { "type": "string", "format": "date-time" },
+    "action": { "type": "string", "const": "hold" },
+    "until": { "type": "string", "format": "date-time" },
+    "notes": { "type": "string" },
+    "signature": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "scheme": { "type": "string" },
+        "value": { "type": "string" }
+      }
+    }
+  }
+}

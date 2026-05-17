@@ -1,70 +1,51 @@
-# Trinity Protocol .gitignore
-# v0.5 / Phase 6.1
-
-# macOS
+# OS
 .DS_Store
-.AppleDouble
-.LSOverride
+Thumbs.db
 
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
 *.egg-info/
-dist/
-build/
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.swp
-*~
-
-# State files (system-managed, but allow templates)
-state/*.json
-!state/.gitkeep
-!state/*.template
-audit/locks.json
-audit/*.lock
-
-# Session-specific runtime
-sessions/active/*/DO/dev/*
-sessions/active/*/DO/prod/*
-!sessions/active/*/.gitkeep
-
-# Logs
-logs/*.log
-logs/*.ndjson
-!logs/.gitkeep
-
-# IDE
-.vscode/
-.idea/
-*.sublime-*
-
-# Virtual environments
+.pytest_cache/
 .venv/
 venv/
-ENV/
 
-# Test artifacts
-.pytest_cache/
-.coverage
-htmlcov/
+# Trinity runtime artifacts (per-project, not for VCS)
+.ai/sessions/*
+!.ai/sessions/.gitkeep
+!.ai/sessions/active/
+.ai/sessions/active/*
+!.ai/sessions/active/.gitkeep
+!.ai/sessions/archive/
+.ai/sessions/archive/*
+!.ai/sessions/archive/.gitkeep
+.ai/audit/*
+!.ai/audit/.gitkeep
+!.ai/audit/events.ndjson
+.ai/state/status.json
+.ai/state/verify_report.json
+.ai/state/locks.json
+.ai/state/*
+!.ai/state/.gitkeep
+.ai/logs/
+.ai/.memory/
+.ai/memory/*
+!.ai/memory/.gitkeep
+.memory/
+.trinity/
+/audit/
 
-# Keep structure
-!.gitkeep
+# Export outputs
+dist/
+*_github_export/
+trinity_v2_github_export/
 
-# Secrets (local only)
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Secrets
+.env
+.env.local
 .secrets/
-
-# Prevent nested .ai folders
-.ai/
-!/.ai
-
-# Prevent accidental nested .ai folders
-**/.ai/
-!.ai

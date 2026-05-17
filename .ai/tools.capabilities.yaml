@@ -1,0 +1,108 @@
+# tools.capabilities.yaml — Phase 6 tool capability registry
+#
+# Status: AUTHORITATIVE (promoted 2026-05-15 via Phase 6 session
+#   0001_2026-05-15_21_27_pm_feat-p6-runtime-tool-capability-yaml-executor,
+#   decided_by: human per Article XIII).
+# Companion to the authoritative .ai/tools.yaml; declares the
+# capability axes each tool *requires* so the kernel can intersect
+# the requirement against the session's sandbox profile.
+#
+# Spec: docs/specs/TRINITY_TOOL_CAPABILITY_MODEL_V1.md
+# Rank: 5 (Workflow Contract) per Constitution Article XXV.
+# Loader: .ai/cli/core/tool_registry.py (FAILS CLOSED on V1-V5 / vocab drift).
+
+version: "1.0"
+status: "authoritative"
+authoritative: true
+
+# Closed vocabulary mirroring §2 of the spec.
+capability_vocabulary:
+  fs:
+    - fs.read
+    - fs.write
+    - fs.delete
+  net:
+    - net.outbound
+    - net.allowlist
+  proc:
+    - proc.exec
+    - proc.spawn
+  audit:
+    - audit.read
+    - audit.append   # kernel-only; tools never get this
+  policy:
+    - policy.read    # writes forbidden by Article III
+  ddd:
+    - ddd.propose
+    - ddd.decide     # human-only; tools may only propose
+  tool:
+    - tool.invoke
+
+# Per-tool capability declarations. `name` must match a name in
+# .ai/tools.yaml.tools[].
+tools:
+  - name: browser-cli
+    required_capabilities:
+      - net.outbound
+      - net.allowlist
+      - fs.read
+    optional_capabilities:
+      - fs.write
+    default_tier_requirement: WARM
+    notes: "Browser organ; outbound HTTP(S); fs.write only with --screenshot-to-disk."
+
+  # trinity-tg-bot removed Phase 6 (2026-05-15): V2 strict 1:1 with
+  # .ai/tools.yaml — bot is a transport organ that does not yet
+  # register a sibling bin in tools.yaml. Re-add as a paired entry
+  # (tools.yaml + capabilities.yaml) once the transport bin lands.
+
+  - name: memory-cli
+    required_capabilities:
+      - fs.read
+      - audit.read
+    optional_capabilities: []
+    default_tier_requirement: WARM
+    notes: "Read-only artefact retrieval (Memory CLI Constitution v0.1 — exact-only)."
+
+  - name: notify-cli
+    required_capabilities:
+      - net.outbound
+      - net.allowlist
+    optional_capabilities:
+      - fs.read
+    default_tier_requirement: WARM
+    notes: "Transport organ (Spec 13). Outbound HTTPS to Telegram + webhook endpoints."
+
+  - name: image-cli
+    required_capabilities:
+      - net.outbound
+      - fs.write
+    optional_capabilities:
+      - fs.read
+    default_tier_requirement: WARM
+    notes: "Image generation (Spec 16). Outbound to provider + writes generated artefacts."
+
+  - name: seo-genie-cli
+    required_capabilities:
+      - net.outbound
+      - fs.read
+      - fs.write
+    optional_capabilities: []
+    default_tier_requirement: WARM
+    notes: "SEO content + audit (Spec 17). Outbound to keyword/research APIs; writes drafts."
+
+  - name: judge-cli
+    required_capabilities:
+      - net.outbound
+      - fs.read
+    optional_capabilities: []
+    default_tier_requirement: COLD
+    notes: "AI advisory verifier (Spec 18). Outbound to LLM provider. Article IV: advisory only — cannot promote/deploy."
+
+  - name: retro-cli
+    required_capabilities:
+      - fs.read
+    optional_capabilities:
+      - fs.write
+    default_tier_requirement: WARM
+    notes: "Retro drafting helper (Spec 06). Drafts only — rrr remains kernel terminal gate."

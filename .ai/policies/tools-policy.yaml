@@ -1,0 +1,96 @@
+# Trinity Tool Policy
+#
+# Spec ref: docs/specs/01_TOOL_CONTRACT.md §11 (Policy Tiers)
+# Decision: D13 (Plugin tool architecture)
+#
+# Defines:
+#   1. Path resolution rules — how `${project_root}/...` and `../foo` are resolved
+#   2. Tier permissions      — what each policy tier can do
+#   3. Version handshake     — what kernel checks before invoking a tool
+#   4. Allowed install kinds — sandboxed install commands
+
+version: "1.0"
+
+# ---------------------------------------------------------------------------
+# Path resolution
+# ---------------------------------------------------------------------------
+path_resolution:
+  # ${project_root} expands to the trinity_v2 repo root (auto-detected)
+  project_root_var: "${project_root}"
+
+  # Tool paths must resolve OUTSIDE .ai/ kernel root or to a known tools dir.
+  allowed_roots:
+    - "${project_root}/..*"          # sibling layout (../tool-name)
+    - "${project_root}/tools/*"      # vendored layout (if user opts in later)
+
+  # Disallowed for kernel safety.
+  disallowed_roots:
+    - "<user-home>"                     # absolute user paths (D12 violation)
+    - "/var/*"
+    - "/etc/*"
+    - "${project_root}/.ai/*"        # tools must not live inside the kernel
+
+# ---------------------------------------------------------------------------
+# Policy tiers (mirror 01_TOOL_CONTRACT.md §11)
+# ---------------------------------------------------------------------------
+tiers:
+  safe:
+    description: "Read-only operations. No state mutation, no external calls."
+    allowed_actions: [read, query, search, describe, health, list]
+    requires_human_approval: false
+
+  normal:
+    description: "Read + bounded writes inside the session capsule."
+    allowed_actions: [read, query, write_local, navigate, dom_query, screenshot]
+    requires_human_approval: false
+    audit_required: true
+
+  aggressive:
+    description: "External effects (network, deploy, prod writes)."
+    allowed_actions: [write_external, deploy, send, mutate_external]
+    requires_human_approval: true     # decided_by: human (D2)
+    audit_required: true
+
+# ---------------------------------------------------------------------------
+# Version handshake (kernel -> tool, before first invocation)
+# ---------------------------------------------------------------------------
+version_handshake:
+  # Kernel checks tool's contract_version against this list. Pre-1.0 betas
+  # are accepted by exact match (no SemVer range support yet — siblings
+  # publish as e.g. "0.3.0-beta", "0.6.0-beta" while contract is still
+  # iterating before the 1.0 freeze). The closed list keeps the kernel
+  # honest: a sibling drifting to an unlisted version is a registration
+  # error, not a silent compat downgrade.
+  #
+  # R8 — pre-1.0 markers added (sibling tools currently ship 0.x-beta).
+  # When the contract freezes at 1.0, retire the 0.x rows below.
+  supported_contract_versions:
+    - "1.0"
+    - "0.1.0-beta"
+    - "0.2.0-beta"
+    - "0.3.0-beta"
+    - "0.4.0-beta"
+    - "0.5.0-beta"
+    - "0.6.0-beta"
+
+  # If tool reports a higher schema_version than kernel knows about, kernel
+  # MAY proceed but logs a warning. If lower, kernel SHOULD use the older
+  # response shape (forward compatibility).
+  on_unknown_schema: warn        # warn | reject | accept
+  on_missing_health_endpoint: warn
+
+# ---------------------------------------------------------------------------
+# Install kinds (sandboxed; kernel runs only these)
+# ---------------------------------------------------------------------------
+install_kinds:
+  - name: npm
+    requires: ["package.json"]
+    sandbox: cwd                 # cwd-scoped only
+  - name: pip
+    requires: ["requirements.txt"]
+    sandbox: cwd
+  - name: cargo
+    requires: ["Cargo.toml"]
+    sandbox: cwd
+  - name: noop
+    description: "Tool is already on PATH or self-contained binary"

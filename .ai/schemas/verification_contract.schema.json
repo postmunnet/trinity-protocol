@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trinity.local/schemas/verification_contract.schema.json",
+  "title": "Trinity Verification Contract",
+  "description": "Per-session acceptance contract authored at nnn and consumed by the Verifier (Phase 3). Authoritative shape per docs/specs/TRINITY_VERIFICATION_CONTRACT_SPEC_V1.md §4.6 + §4.6.1 (precedence-validator clause). additionalProperties:false at every level encodes Article XVI Least Authority + Article XX Passive Core.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "description", "version", "acceptance"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable contract identifier; opaque to consumers."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable summary of what this contract verifies."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
+      "description": "Semver-ish (MAJOR.MINOR[.PATCH])."
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description", "rule_set", "command", "expect_exit", "required"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^A[0-9]+$",
+            "description": "Acceptance entry identifier; canonical form A1, A2, ..."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rule_set": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Rule-set ID from .ai/policies/verifier-rules.yaml or a tagged-new ID (sandbox_profile_missing, capture_missing_for_artifact, ...). See spec §4.6."
+          },
+          "predicates": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true,
+            "default": [],
+            "description": "Subset of the rule_set's predicate names that this acceptance entry binds to. May be empty when the rule_set is self-contained."
+          },
+          "evidence_keys": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true,
+            "default": [],
+            "description": "Evidence keys the executor MUST supply (e.g. test_result.json, git.diff)."
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Shell command the verifier executes to gather evidence. Cf. rrr-side acceptance — same shape."
+          },
+          "expect_exit": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Required exit code from `command`."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "If true, failure of this entry blocks the rrr terminal gate."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Free-form rationale; surfaced in retro and audit payload."
+          },
+          "on_fire_verdict": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Optional mapping of predicate-name to verdict override. Spec §4.6.1: this field MUST NOT contradict rule_set predicate-class membership; precedence_override (a separate field) is forbidden at the schema level.",
+            "patternProperties": {
+              "^[a-z_][a-z0-9_]*$": {
+                "type": "string",
+                "enum": ["PASS", "RETRY", "NEEDS_HUMAN", "DEAD"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "expected_terminal_verdict": {
+      "type": "string",
+      "enum": ["PASS", "RETRY", "NEEDS_HUMAN", "DEAD"],
+      "description": "Optional: the verdict the planner expects this contract to terminate with on the happy path. Used by §4.6.1 validator to detect rule_set.fallback_verdict divergence."
+    },
+    "rationale_for_fallback_divergence": {
+      "type": "string",
+      "description": "Required when expected_terminal_verdict differs from any acceptance entry's rule_set.fallback_verdict (spec §4.6.1)."
+    },
+    "policy_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "SHA-256 snapshots of canonical policy files at nnn time. Spec §5.4 (V1.1 addition). Used to detect mid-session policy drift.",
+      "properties": {
+        "safety_yaml_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "gates_yaml_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "rbac_yaml_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "verifier_rules_yaml_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "ritual": "rrr",
+  "version": "1.0",
+  "purpose": "Terminal closure ritual: emit deterministic retro envelope (metrics + acceptance evidence + forbidden-path diff + transitions), delegate memory indexing to memory-cli index (NOT learn), and fire RETRO -> DONE per Ritual Constitution Article XII and RRR Delegation Contract T1-T4.",
+  "delegated_role": "Retro Writer",
+  "input_context": "context.schema.json",
+  "write_template": "write.template.md",
+  "check_template": "check.template.json",
+  "output_artifacts": [
+    "{{session.dir}}/THINK/RETRO.md",
+    "{{session.dir}}/.state/rrr_complete",
+    "{{session.dir}}/.state/rrr/memory_index_result.json"
+  ],
+  "required_checks": [
+    "artifact_exists:THINK/RETRO.md",
+    "artifact_exists:.state/rrr_complete",
+    "artifact_exists:.state/rrr/memory_index_result.json",
+    "headings_present:Retrospective,Verdict,Metrics,Graph transitions,Acceptance evidence,Forbidden-path diff,Notes",
+    "structural:memory_handling.mode == index",
+    "structural:memory_handling.verb != learn",
+    "structural:auto_pin_attempts == 0",
+    "structural:rrr.semantic_synthesis == false",
+    "structural:audit.rrr_delegated_call.count >= 1",
+    "forbidden_phrases_absent",
+    "forbidden_actions_absent",
+    "audit_chain_append_only",
+    "role_allowed:Retro Writer",
+    "role_forbidden:Transport",
+    "state_transition:DEPLOY|RETRO -> RETRO|DONE"
+  ],
+  "forbidden_actions": [
+    "memory_cli_learn",
+    "auto_pin",
+    "compose_semantic_synthesis",
+    "compose_lessons_learned",
+    "modify_audit_chain_in_place",
+    "modify_canonical_policies",
+    "modify_schemas",
+    "self_certify_acceptance",
+    "self_trigger",
+    "decide_workflow_meaning",
+    "silence_index_failure",
+    "auto_promote",
+    "auto_deploy"
+  ],
+  "allowed_current_states": ["DEPLOY", "RETRO"],
+  "allowed_next_states": ["RETRO", "DONE"],
+  "audit_events": [
+    "rrr.invoked",
+    "rrr.proposed",
+    "rrr.delegated_call",
+    "rrr.completed",
+    "rrr.index_failed"
+  ],
+  "retry_policy": {
+    "max_retries": 3,
+    "retry_owner": "same_delegated_role",
+    "escalate_to": "NEEDS_HUMAN",
+    "preserve_failed_attempts": true,
+    "audit_each_attempt": true
+  }
+}

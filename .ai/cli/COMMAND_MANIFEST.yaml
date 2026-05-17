@@ -1,0 +1,179 @@
+# Trinity CLI Command Manifest — source of truth for ritual ↔ executable command mapping.
+#
+# This file exists because the ritual language (sss / vvv / nnn / gogogo / ddd / rrr / lll / close)
+# and the executable CLI surface have drifted in the past. Agents (and humans)
+# kept inventing commands like `ai sss`, `ai start`, `ai init`, `ai status`
+# without subcommand — those drift errors are now caught structurally.
+#
+# Authority:
+#   Do NOT guess CLI commands from ritual names. Consult this manifest, or run
+#   `ai doctor commands` to verify what is actually executable at runtime.
+#
+# Maintenance:
+#   When a new ritual or subcommand is added/renamed, update this manifest in
+#   the same commit. The `ai doctor commands` runtime check walks the manifest
+#   so drift between manifest and runtime becomes a test failure, not a
+#   silent agent-confusion event.
+
+authority: |
+  Source of truth for AI agents and humans alike.
+  Do NOT guess CLI commands from ritual names.
+  When in doubt: `ai doctor commands` or `cat .ai/cli/COMMAND_MANIFEST.yaml`.
+
+# ---------------------------------------------------------------------------
+# Ritual language → executable command mapping
+# ---------------------------------------------------------------------------
+# Every Trinity ritual short-code MUST resolve to an executable CLI command.
+# The `canonical` field is the form agents should emit.
+# The `equivalent_to` field documents historical / underlying paths so
+# refactors do not silently break agent prompts.
+# ---------------------------------------------------------------------------
+
+rituals:
+
+  sss:
+    canonical: 'ai sss "<task>"'
+    equivalent_to: 'ai session new "<task>"'
+    status: supported
+    notes: |
+      sss is the session-start ritual. Both forms create the same
+      Phase 6 canonical session structure; `ai sss` delegates to
+      `cli.commands.session.new` (no duplicated logic).
+
+  vvv:
+    canonical: 'ai vvv'
+    status: supported
+    notes: 'Five-question understanding gate. Auto-fires READY → THINK transition.'
+
+  nnn:
+    canonical: 'ai nnn --plan-envelope <path/to/plan.json>'
+    status: supported
+    notes: 'Budget-check plan envelope; fires THINK → SANDBOX → DO.'
+
+  gogogo:
+    canonical: 'ai gogogo'
+    status: supported
+    notes: 'Walk .state/plan.json step by step with verifier checkpoint per step.'
+
+  ddd:
+    canonical: 'ai ddd --target=dev --reason="<why>"'
+    status: supported
+    notes: 'Human-decided promote + deploy gate. decided_by:human required.'
+
+  rrr:
+    canonical: 'ai rrr'
+    status: supported
+    notes: 'Retrospective + memory-cli auto-feed; acceptance + forbidden-diff gate.'
+
+  lll:
+    canonical: 'ai lll'
+    status: supported
+    notes: 'Read-only situational snapshot. Safe to run anytime.'
+
+  close:
+    canonical: 'ai close'
+    equivalent_to: 'ai close run'
+    status: supported
+    notes: 'Archive the session capsule after graph DONE/DEAD and prod verify pass. `ai close run` remains supported.'
+
+# ---------------------------------------------------------------------------
+# Top-level command aliases (where ritual ≠ command name)
+# ---------------------------------------------------------------------------
+# `commands` documents executable commands whose surface diverges from the
+# obvious ritual name, OR where there is a default-subcommand fallback.
+# ---------------------------------------------------------------------------
+
+commands:
+
+  status:
+    canonical: 'ai status'
+    equivalent_to: 'ai status show'
+    aliases:
+      - 'ai status show'
+      - 'ai status path'
+    status: supported
+    notes: |
+      `ai status` (no subcommand) is a default alias of `ai status show`.
+      `ai status path` is a script-friendly subcommand that prints only
+      the current session path.
+
+  session_new:
+    canonical: 'ai session new "<task>"'
+    aliases:
+      - 'ai sss "<task>"'
+    status: supported
+
+  verify_dev:
+    canonical: 'ai verify dev'
+    aliases:
+      - 'ai verify run --scope dev'
+    status: supported
+
+  verify_prod:
+    canonical: 'ai verify prod'
+    aliases:
+      - 'ai verify run --scope prod'
+    status: supported
+
+  close_run:
+    canonical: 'ai close'
+    aliases:
+      - 'ai close run'
+    status: supported
+    notes: 'Bare `ai close` is the ritual command; `run` is backward compatibility.'
+
+  doctor_commands:
+    canonical: 'ai doctor commands'
+    status: supported
+    notes: 'Runtime CLI contract check. Walks the manifest and exercises --help on each surveyed command.'
+
+  project:
+    canonical: 'ai project <add|list|current|doctor>'
+    aliases:
+      - 'ai project add <path> --name <name>'
+      - 'ai project list'
+      - 'ai project current'
+      - 'ai project doctor'
+    status: supported
+    notes: |
+      Hybrid central-Trinity binding surface. Registers a project in
+      ~/.trinity/registry.sqlite, writes project/.trinity/project.yaml,
+      and derives MEMORY_HOME or TRINITY_MEMORY_HOME db/<project_slug>.db.
+
+# ---------------------------------------------------------------------------
+# Survey set — what `ai doctor commands` checks
+# ---------------------------------------------------------------------------
+# Each entry is a list of argv tokens (after `python -m cli.main`).
+# A PASS means the invocation exits 0; otherwise FAIL is reported.
+# ---------------------------------------------------------------------------
+
+doctor_survey:
+  - ['status']
+  - ['status', 'show']
+  - ['sss', '--help']
+  - ['session', '--help']
+  - ['session', 'new', '--help']
+  - ['vvv', '--help']
+  - ['nnn', '--help']
+  - ['gogogo', '--help']
+  - ['ddd', '--help']
+  - ['rrr', '--help']
+  - ['lll', '--help']
+  - ['close', '--help']
+  - ['close', 'run', '--help']
+  - ['verify', '--help']
+  - ['verify', 'dev', '--help']
+  - ['verify', 'prod', '--help']
+  - ['doctor', '--help']
+  - ['doctor', 'commands', '--help']
+  - ['project', '--help']
+  - ['project', 'add', '--help']
+  - ['project', 'list', '--help']
+  - ['project', 'current', '--help']
+  - ['project', 'doctor', '--help']
+  # Smoke-mode entries — actually run the command (not just --help).
+  # These catch the class of bug where --help works but real invocation
+  # breaks at path resolution / SSOT load / etc.
+  - ['audit', 'verify-chain']
+  - ['audit', 'replay']
+  - ['audit', 'metrics', '--help']

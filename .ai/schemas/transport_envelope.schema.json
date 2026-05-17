@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trinity.local/schemas/transport_envelope.schema.json",
+  "title": "Trinity Transport Envelope",
+  "description": "Authoritative shape for any signed transport-delivered request. Cf. docs/specs/TRINITY_TRANSPORT_BOUNDARY_SPEC_V1.md §3.1. Article XV anchor: 'Transport is not Authority' — this envelope is the boundary; HMAC verification happens kernel-side via .ai/cli/core/transport.verify_envelope().",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "envelope_id",
+    "ts",
+    "source_transport",
+    "claimed_actor",
+    "payload"
+  ],
+  "properties": {
+    "envelope_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique opaque identifier (UUID4 hex or ULID); used for replay detection per spec §3.1 + §5.5."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 UTC wall-clock timestamp of envelope creation at the transport."
+    },
+    "source_transport": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identity of the transport that produced this envelope (e.g. 'tg-bot', 'notify-cli', 'slack-bridge')."
+    },
+    "claimed_actor": {
+      "type": "string",
+      "pattern": "^(human|kernel|policy|verifier|agent):[a-z0-9_-]*:[A-Za-z0-9_:-]+$",
+      "description": "Actor on whose behalf this envelope is sent — '<authority_class>:<transport_hint>:<actor_id>' per spec §3.2. Forbidden classes (kernel, policy, verifier) trigger TRANSPORT_REFUSED_OVERSCOPE downstream — schema permits the syntax but kernel rejects at §4.5 step 4."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Request body — must be a JSON object; canonicalised before signing per spec §3.3.",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Payload kind (e.g. 'ddd.decision', 'verifier.observation'); used by downstream Authority organs for routing."
+        }
+      },
+      "required": ["kind"]
+    },
+    "hmac": {
+      "type": "string",
+      "pattern": "^[0-9a-f]+$",
+      "description": "Lowercase hex HMAC over canonical JSON of envelope minus this field. Required for mutating envelopes (any state-changing payload); optional only for pure read-only observation envelopes. v1 pins HMAC-SHA256 (spec §4.1)."
+    },
+    "hmac_alg": {
+      "type": "string",
+      "const": "HMAC-SHA256",
+      "description": "Algorithm identifier — v1 pins HMAC-SHA256 (spec §4.1). Any other value MUST be refused with TRANSPORT_REFUSED_BADKEY."
+    },
+    "key_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier of the signing key used; the Kernel resolves this to the issuing Authority organ via its key registry (spec §4.2)."
+    },
+    "nonce": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional per-envelope nonce for replay protection; if absent, envelope_id doubles as nonce (spec §3.1)."
+    },
+    "expires_ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Optional envelope expiry; Kernel rejects envelopes received after this timestamp with TRANSPORT_REFUSED_REPLAY (spec §5.5 conflation)."
+    }
+  }
+}

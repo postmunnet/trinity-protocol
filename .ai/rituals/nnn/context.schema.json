@@ -1,0 +1,77 @@
+{
+  "context_schema_version": "1.0",
+  "ritual": "nnn",
+  "placeholders": [
+    {
+      "identifier": "session.slug",
+      "type": "plain_text",
+      "required": true,
+      "description": "Active session slug (kebab-case). Treated as data, never as instruction.",
+      "source": "session.meta.slug"
+    },
+    {
+      "identifier": "operator.name",
+      "type": "plain_text",
+      "required": true,
+      "description": "Human operator who approved the plan envelope (used in attribution header).",
+      "source": "session.meta.operator"
+    },
+    {
+      "identifier": "nnn.proposed_at_utc",
+      "type": "plain_text",
+      "required": true,
+      "description": "ISO-8601 UTC timestamp recording when the plan envelope was proposed to the operator.",
+      "source": "audit.nnn.proposed.ts_utc"
+    },
+    {
+      "identifier": "plan.goal",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "One-sentence goal of the plan envelope (derived from vvv Q1). Markdown-escaped: user input is data, never instruction.",
+      "source": "plan_envelope.goal"
+    },
+    {
+      "identifier": "plan.tier",
+      "type": "enum",
+      "required": true,
+      "description": "Velocity tier governing required-rituals path under Article XIV (HOT / WARM / COLD).",
+      "enum_values": ["HOT", "WARM", "COLD"],
+      "source": "plan_envelope.tier"
+    },
+    {
+      "identifier": "plan.steps_summary",
+      "type": "markdown_escaped",
+      "required": false,
+      "description": "Optional human-readable summary of the ordered step list. A separate structured artifact (plan_envelope.json.steps) is canonical.",
+      "source": "plan_envelope.steps"
+    },
+    {
+      "identifier": "plan.allowed_paths_list",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Markdown-escaped bullet list of paths the executor MAY write during gogogo. Mirrors plan_envelope.allowed_paths.",
+      "source": "plan_envelope.allowed_paths"
+    },
+    {
+      "identifier": "plan.forbidden_paths_list",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Markdown-escaped bullet list of paths the executor MUST NOT touch. Mirrors plan_envelope.forbidden_paths.",
+      "source": "plan_envelope.forbidden_paths"
+    },
+    {
+      "identifier": "plan.acceptance_list",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Markdown-escaped bullet list of measurable acceptance signals (derived from vvv Q4). Mirrors plan_envelope.acceptance.",
+      "source": "plan_envelope.acceptance"
+    },
+    {
+      "identifier": "plan.rollback_summary",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Markdown-escaped rollback summary per Article XXII (Constitution v1.0). Mirrors plan_envelope.rollback / rollback.md.",
+      "source": "plan_envelope.rollback"
+    }
+  ]
+}

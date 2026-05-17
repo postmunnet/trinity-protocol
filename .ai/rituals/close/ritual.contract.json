@@ -1,0 +1,54 @@
+{
+  "ritual": "close",
+  "version": "1.0",
+  "purpose": "Seal a terminal session — kernel-mechanical finalizer that emits final_manifest.json (artifact hashes + audit chain anchor + metrics) and a human-readable close report, transitioning the session to SEALED per Constitution Articles X and XXX.",
+  "delegated_role": "Session Finalizer",
+  "input_context": "context.schema.json",
+  "write_template": "write.template.md",
+  "check_template": "check.template.json",
+  "output_artifacts": [
+    ".state/final_manifest.json",
+    "THINK/session_close_report.md",
+    "audit/external/{{utc_date}}/{{session.id}}.audit.json"
+  ],
+  "required_checks": [
+    "artifact_exists:.state/final_manifest.json",
+    "artifact_exists:THINK/session_close_report.md",
+    "headings_present:Session Close Report,Final State,Artifact Manifest,Audit Chain Anchor",
+    "structural:session.final_state in (DONE,FAILED,ABORTED)",
+    "structural:final_manifest.artifact_hashes.length == count(DO/prod/files)",
+    "structural:final_manifest.audit_chain_anchor is_present",
+    "structural:audit.in_place_modification_count == 0",
+    "structural:tier == COLD => external_audit.path is_present",
+    "forbidden_phrases_absent",
+    "role_allowed:Kernel",
+    "role_forbidden:Transport",
+    "state_transition:DONE|FAILED|ABORTED -> SEALED"
+  ],
+  "forbidden_actions": [
+    "rewrite_audit_chain",
+    "edit_retro_in_place",
+    "delete_session_directory",
+    "modify_policies",
+    "modify_audit_chain",
+    "modify_retro_lessons",
+    "self_certify_completion",
+    "auto_archive_without_manifest"
+  ],
+  "allowed_current_states": ["DONE", "FAILED", "ABORTED"],
+  "allowed_next_states": ["SEALED"],
+  "audit_events": [
+    "close.invoked",
+    "close.proposed",
+    "close.completed",
+    "close.external_audit_emitted",
+    "close.failed"
+  ],
+  "retry_policy": {
+    "max_retries": 3,
+    "retry_owner": "Kernel",
+    "escalate_to": "NEEDS_HUMAN",
+    "preserve_failed_attempts": true,
+    "audit_each_attempt": true
+  }
+}

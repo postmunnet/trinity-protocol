@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trinity.local/schemas/verifier_report.schema.json",
+  "title": "Trinity Verifier Report",
+  "description": "Authoritative shape for any verifier verdict (layers 1-4). See docs/specs/TRINITY_VERIFIER_CONTRACT_V1.md §5. RecordProxy-aligned: audit_event reference uses the 13-field per-session shape (TRINITY_AUDIT_EVENT_SPEC_V1 §2); capture_refs links the verdict to the captures that produced its evidence (§5.1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "layer", "tier", "rule_set", "evidence_keys", "capture_refs", "ts", "session"],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "RETRY", "NEEDS_HUMAN", "DEAD"],
+      "description": "Closed verdict set per .ai/policies/verifier-rules.yaml §verdicts. RecordProxy outcomes (ORPHANED_INVOCATION, FAILED_PARTIAL, RECONCILED, ARCHIVED) are mapped into this set per TRINITY_VERIFIER_CONTRACT_V1 §2.1."
+    },
+    "layer": {
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "description": "1=deterministic, 2=policy, 3=LLM judge, 4=human."
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["HOT", "WARM", "COLD"],
+      "description": "Operational risk classification of the gated workflow."
+    },
+    "rule_set": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Rule-set ID from .ai/policies/verifier-rules.yaml or 'policy'/'llm_judge'/'human'. RecordProxy-alignment v2 added: orphaned_invocation, capture_finalize_missing, capture_missing_for_artifact, sandbox_profile_missing (TRINITY_VERIFIER_CONTRACT_V1 §4)."
+    },
+    "evidence_keys": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "Predicate names evaluated (deterministic) or empty for non-deterministic layers."
+    },
+    "capture_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "ULID list of captures.capture_id rows backing the evidence (TRINITY_VERIFIER_CONTRACT_V1 §5 + §5.1). MAY be empty for session-level verdicts before any capture started, or when the verdict fires on sandbox_profile_missing/capture_missing_for_artifact (in which case notes MUST explain). On COLD tier, an empty array requires a notes explanation."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 UTC timestamp."
+    },
+    "session": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Session ID."
+    },
+    "step_id": {
+      "type": ["string", "null"],
+      "description": "Step id; null for session-level verdicts."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Required when verdict in {RETRY, NEEDS_HUMAN, DEAD}; constraint enforced by aggregator, not schema. For RECONCILED source, notes.reconciled=true required; for HOT-degraded ORPHANED, notes.degraded=true required (TRINITY_VERIFIER_CONTRACT_V1 §5)."
+    },
+    "audit_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_id", "schema_version", "seq", "hash"],
+      "description": "Reference to the corresponding event in the per-session AuditWriter chain (TRINITY_AUDIT_EVENT_SPEC_V1 §2 — 13-field shape). Replaces the legacy {type, hash} reference; the new shape unambiguously identifies the event by event_id + session-scoped seq, allowing cross-verification against capture.sqlite audit_events table.",
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "pattern": "^evt_[0-9a-f]{32}$",
+          "description": "Per-event UUID4 hex; matches AuditWriter._event_id() pattern."
+        },
+        "schema_version": {
+          "type": "string",
+          "const": "trinity.audit_event.v1",
+          "description": "Audit event schema version constant; pins to RecordProxy v1 (recordproxy/schemas.py)."
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Session-scoped monotonic sequence; UNIQUE(session_id, seq) per capture_store.py."
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of canonical_json(event_for_hash) per TRINITY_AUDIT_EVENT_SPEC_V1 §2.1."
+        }
+      }
+    }
+  }
+}

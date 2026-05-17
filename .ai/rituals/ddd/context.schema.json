@@ -1,0 +1,78 @@
+{
+  "context_schema_version": "1.0",
+  "ritual": "ddd",
+  "placeholders": [
+    {
+      "identifier": "session.slug",
+      "type": "plain_text",
+      "required": true,
+      "description": "Active session slug; appears in decision packet header for operator attribution.",
+      "source": "session.meta.slug"
+    },
+    {
+      "identifier": "plan.goal",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Plan envelope goal statement carried forward from nnn. Escaped as data, never instruction.",
+      "source": "plan_envelope.goal"
+    },
+    {
+      "identifier": "plan.tier",
+      "type": "enum",
+      "required": true,
+      "description": "Decision Velocity Tier per Addendum v1.0.1. Packet contents vary by tier (HOT=minimal, COLD=full).",
+      "enum_values": ["HOT", "WARM", "COLD"],
+      "source": "plan_envelope.tier"
+    },
+    {
+      "identifier": "verifier_report_summary",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "One-paragraph synthesis of verifier verdict (PASS/RETRY/NEEDS_HUMAN/DEAD) and key findings. Operator-readable.",
+      "source": "verifier_report.summary"
+    },
+    {
+      "identifier": "risk_summary",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Risk surface for the requested action: blast radius, reversibility, evidence gaps.",
+      "source": "presentation.risk"
+    },
+    {
+      "identifier": "dissent_summary",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Preserved dissent from any agent or sub-verifier per Constitution Article XIII. Empty string only if no dissent was recorded.",
+      "source": "presentation.dissent"
+    },
+    {
+      "identifier": "verifier_report_ref",
+      "type": "evidence_ref",
+      "required": true,
+      "description": "Evidence reference to the verifier_report.json artifact backing this decision. Required by Article XV (decision must cite evidence).",
+      "source": "verifier_report.ref"
+    },
+    {
+      "identifier": "audit_chain_anchor",
+      "type": "evidence_ref",
+      "required": true,
+      "description": "Hash-chain anchor (latest audit event hash) at packet-proposal time. Kernel uses this to detect chain drift before applying decision.",
+      "source": "audit.head_hash"
+    },
+    {
+      "identifier": "requested_at_utc",
+      "type": "plain_text",
+      "required": true,
+      "description": "ISO-8601 UTC timestamp when the packet was proposed to the human operator.",
+      "source": "audit.ddd.proposed.ts_utc"
+    },
+    {
+      "identifier": "requested_action",
+      "type": "enum",
+      "required": true,
+      "description": "Action the operator is being asked to authorize.",
+      "enum_values": ["PROMOTE", "DEPLOY", "ABORT", "ROLLBACK"],
+      "source": "plan_envelope.requested_action"
+    }
+  ]
+}

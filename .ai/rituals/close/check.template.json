@@ -1,0 +1,84 @@
+{
+  "check_template_version": "1.0",
+  "required_artifacts": [
+    ".state/final_manifest.json",
+    "THINK/session_close_report.md"
+  ],
+  "required_headings": [
+    "# Session Close Report",
+    "## Final State",
+    "## Artifact Manifest",
+    "## Audit Chain Anchor"
+  ],
+  "required_fields": {
+    "final_manifest.json": "session_id+final_state+artifact_hashes+audit_chain_anchor"
+  },
+  "required_evidence_refs": {
+    "audit_chain_anchor": {
+      "kind": "audit_hash",
+      "required": true,
+      "format": "sha256",
+      "description": "Head hash of the audit chain at close.completed time. Article X — audit replay must be possible from this anchor."
+    },
+    "final_manifest_ref": {
+      "kind": "artifact_ref",
+      "required": true,
+      "description": "Path to .state/final_manifest.json produced by this close invocation."
+    },
+    "external_audit_ref": {
+      "kind": "artifact_ref",
+      "required": false,
+      "description": "Path to audit/external/<UTC-date>/<sid>.audit.json. Required iff plan.tier == COLD per Addendum v1.0.1 §D; absence is PASS for HOT/WARM."
+    }
+  },
+  "required_structural_predicates": [
+    {"predicate": "session.final_state in (DONE,FAILED,ABORTED)", "required": true},
+    {"predicate": "final_manifest.artifact_hashes.length == count(DO/prod/files)", "required": true},
+    {"predicate": "final_manifest.audit_chain_anchor is_present", "required": true},
+    {"predicate": "final_manifest.session_id == session.meta.id", "required": true},
+    {"predicate": "audit.in_place_modification_count == 0", "required": true},
+    {"predicate": "tier == COLD => external_audit.path is_present", "required": false},
+    {"predicate": "state_transition.to == SEALED", "required": true}
+  ],
+  "required_phrases": [],
+  "forbidden_phrases": [
+    "{{user_input}}",
+    "audit_rewritten",
+    "retro_edited",
+    "session_deleted"
+  ],
+  "forbidden_actions": [
+    "rewrite_audit_chain",
+    "edit_retro_in_place",
+    "delete_session_directory",
+    "modify_policies",
+    "modify_retro_lessons",
+    "self_certify_completion",
+    "auto_archive_without_manifest"
+  ],
+  "allowed_roles": [
+    "Kernel"
+  ],
+  "forbidden_roles": [
+    "Transport",
+    "Memory CLI",
+    "Retro Writer",
+    "Executor Agent",
+    "Planning Agent",
+    "Verifier Agent",
+    "Presentation Synthesizer",
+    "Session Initializer",
+    "Clarification Agent",
+    "Human Operator"
+  ],
+  "state_transition": {
+    "from": ["DONE", "FAILED", "ABORTED"],
+    "to": ["SEALED"]
+  },
+  "failure_behavior": {
+    "on_missing_artifact": "BLOCK",
+    "on_missing_evidence": "BLOCK",
+    "on_forbidden_phrase": "BLOCK",
+    "on_optional_failure": "WARN"
+  }
+}

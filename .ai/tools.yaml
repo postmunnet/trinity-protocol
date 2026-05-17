@@ -1,0 +1,208 @@
+# Trinity Tool Registry
+#
+# Spec ref: docs/specs/01_TOOL_CONTRACT.md §16 (Tool Registry)
+# Decision: D13 (Plugin tool architecture) — see docs/migration/01_CONTEXT_AND_DECISIONS.md
+#
+# Trinity treats tools as PLUGINS that connect via a stable contract.
+# Tools live OUTSIDE this repo (sibling directories or wherever); the registry
+# below tells the kernel how to reach them and which contract version they speak.
+#
+# Path conventions (D12 — relative paths):
+#   - "${project_root}/..." resolves to the trinity_v2 repo root at runtime
+#   - "../tool-name"          sibling layout (default for Option C)
+#   - absolute paths          discouraged; only when no portable alternative exists
+#
+# When a tool's *implementation* changes (browser-cli v1 -> v2) but the
+# **contract** stays the same, only `schema_version` here needs updating —
+# Trinity kernel itself does not change.
+
+version: "1.0"
+schema_doc: docs/specs/01_TOOL_CONTRACT.md
+
+tools:
+  - name: browser-cli
+    description: "Browser automation organ — navigation, DOM, screenshot, assertion (the 'eyes & hands' for web)"
+    path: "${project_root}/../browser-cli"
+    bin: "node ${project_root}/../browser-cli/index.js"
+    schema_version: "2"
+    contract_version: "1.0"
+    contract_baseline: docs/contracts/browser-cli/
+    capabilities:
+      - browser
+      - navigation
+      - dom
+      - screenshot
+      - assertion
+    policy_default: normal
+    health_check: "--health"
+    install:
+      kind: npm
+      cwd: "${project_root}/../browser-cli"
+      cmd: "npm install"
+    notes: |
+      First tool registered under Option C (sibling + plugin registry).
+      Source repo is independent of trinity_v2 lifecycle.
+      Frozen contract baseline copied at docs/contracts/browser-cli/ (Commit 4).
+
+  - name: memory-cli
+    description: "Knowledge Brain recall organ — SQLite + FTS5 + sqlite-vec hybrid (19 verbs at v0.9.2). ai rrr delegates retro artifacts via index; lll/vvv/nnn read via search."
+    path: "${project_root}/../memory-cli"
+    bin: "node ${project_root}/../memory-cli/index.js"
+    schema_version: "1"
+    contract_version: "1.0"
+    contract_baseline: docs/contracts/memory-cli/
+    capabilities:
+      - memory
+      - recall
+      - indexer
+      - search
+      - learn
+      - tag
+      - supersede
+      - reflect
+      - delete
+      - reindex
+      - health
+      - embed
+      - similar
+      - map
+      - thread
+      - note
+    policy_default: safe
+    health_check: "--health"
+    install:
+      kind: noop
+      cwd: "${project_root}/../memory-cli"
+      cmd: "true"
+    notes: |
+      v0.1 ritual surface note: Trinity RRR uses `memory-cli index`
+      for deterministic retro artifact ingestion. `memory-cli learn`
+      remains listed because the sibling memory-cli still exposes
+      legacy/non-v0.1 verbs for non-ritual callers; RRR must not call it.
+      tool_version 0.9.2-beta — 19 verbs across:
+      v0.5 (12 baseline): stats, index, search, get, list, learn, tag,
+      supersede, reflect, delete, reindex, health. v0.7 (+2): embed
+      (batch-embed documents.embedding via provider abstraction;
+      default 'fake' = 64-dim hash), similar (cosine text-query over
+      stored embeddings). Plus action chain (7 phases on learn) +
+      --hybrid flag (FTS5 + vector RRF fusion). v0.8 (+4): map (PCA
+      2D/3D over the action-chain's 1024-dim vec_records, NOT the
+      embed-verb path), thread/thread-of/unthread (parent-child
+      relations + DFS cycle detection). v0.9 (project column +
+      auto-detect chain + TRINITY_CENTRAL_DB env + --project filters).
+      v0.9.1 (+1): note (quick-capture wrapper; hardcoded skip_chain).
+      v0.9.2: SIGABRT/-6 fix via closeAllOpenHandles() in db.js +
+      library-mode guard. CAVEAT: two embedding subsystems coexist
+      (verb-level 64-dim provider in lib/embed.js vs action-chain
+      1024-dim fastembed in lib/embed_chain.js); see CONTRACT §2.13
+      note. Built on Node 22+ built-in `node:sqlite` + fastembed +
+      sqlite-vec + ml-pca (3 npm deps). 190 internal tests via
+      node:test. See docs/specs/05_MEMORY_CLI_SPEC.md and
+      docs/contracts/memory-cli/COMMAND_CONTRACT.md.
+
+# Forward-looking — register stubs for tools that will land in Phase 1+:
+#   - verify-cli   (verifier rules runtime) — Phase 4
+#
+# Schema for new entries follows 01_TOOL_CONTRACT.md §16.1:
+#   name, path, bin, schema_version, contract_version, capabilities,
+#   policy_default, health_check (+ optional contract_baseline, install, notes)
+
+  - name: notify-cli
+    description: "Transport/notification organ — Telegram + webhook delivery; Spec 13."
+    path: "${project_root}/../notify-cli"
+    bin: "node ${project_root}/../notify-cli/index.js"
+    schema_version: "1"
+    contract_version: "1.0"
+    capabilities:
+      - notify
+      - transport
+      - telegram
+      - webhook
+    policy_default: safe
+    health_check: "--health"
+    install:
+      kind: npm
+      cwd: "${project_root}/../notify-cli"
+      cmd: "npm install"
+    notes: |
+      Delivery-only transport (Spec 13). Article XV — transport carries
+      evidence; never approves the underlying gate.
+
+  - name: image-cli
+    description: "Image-generation organ — diffusion provider + on-disk artefacts; Spec 16."
+    path: "${project_root}/../image-cli"
+    bin: "node ${project_root}/../image-cli/index.js"
+    schema_version: "1"
+    contract_version: "1.0"
+    capabilities:
+      - image
+      - generation
+      - diffusion
+    policy_default: safe
+    health_check: "--health"
+    install:
+      kind: npm
+      cwd: "${project_root}/../image-cli"
+      cmd: "npm install"
+    notes: |
+      Outbound HTTP to image-gen provider; writes outputs under a single
+      session-scoped path.
+
+  - name: seo-genie-cli
+    description: "SEO content + audit organ; Spec 17."
+    path: "${project_root}/../seo-genie-cli"
+    bin: "node ${project_root}/../seo-genie-cli/index.js"
+    schema_version: "1"
+    contract_version: "1.0"
+    capabilities:
+      - seo
+      - content
+      - audit
+    policy_default: safe
+    health_check: "--health"
+    install:
+      kind: npm
+      cwd: "${project_root}/../seo-genie-cli"
+      cmd: "npm install"
+    notes: |
+      Generates SEO drafts + audit reports. Outbound HTTP for keyword
+      research; fs.write for artefact outputs.
+
+  - name: judge-cli
+    description: "AI advisory verifier — gated layer-3 of the verdict pyramid; Spec 18."
+    path: "${project_root}/../judge-cli"
+    bin: "node ${project_root}/../judge-cli/index.js"
+    schema_version: "1"
+    contract_version: "1.0"
+    capabilities:
+      - judge
+      - llm
+      - advisory
+    policy_default: safe
+    health_check: "--health"
+    install:
+      kind: npm
+      cwd: "${project_root}/../judge-cli"
+      cmd: "npm install"
+    notes: |
+      Article IV: advisory only — judge-cli verdicts cannot promote/deploy
+      on their own. Outbound LLM provider calls.
+
+  - name: retro-cli
+    description: "Retrospective drafting / intake helper; Spec 06."
+    path: "${project_root}/../retro-cli"
+    bin: "node ${project_root}/../retro-cli/index.js"
+    schema_version: "1"
+    contract_version: "1.0"
+    capabilities:
+      - retro
+      - drafting
+      - intake
+    policy_default: safe
+    health_check: "--health"
+    install:
+      kind: npm
+      cwd: "${project_root}/../retro-cli"
+      cmd: "npm install"
+    notes: |
+      Article IV: drafts only — rrr remains the kernel terminal gate.

@@ -1,8 +1,0 @@
-# Test Log
-
-## Test Suite: [Name of test suite]
-- **Result**: [PASS/FAIL]
-- **Duration**: [Time in seconds]
-
-## Details
-[Verbose log output from the test runner]

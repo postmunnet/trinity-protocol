@@ -1,0 +1,59 @@
+{
+  "ritual": "gogogo",
+  "version": "1.0",
+  "purpose": "Bounded execution ritual: walk plan.json step-by-step under Executor authority, emit per-step verifier verdicts (PASS/FAIL/UNVERIFIED) with evidence_ref, and transition workflow through PLAN -> SANDBOX -> EXECUTE -> VERIFY.",
+  "delegated_role": "Executor Agent",
+  "input_context": "context.schema.json",
+  "write_template": "write.template.md",
+  "check_template": "check.template.json",
+  "output_artifacts": [
+    "{{session.dir}}/DO/dev/",
+    "{{session.dir}}/.state/gogogo/",
+    "{{session.dir}}/.state/gogogo/step_{{step.id}}/verifier_report.json",
+    "{{session.dir}}/.state/gogogo/step_{{step.id}}/step_log.md",
+    "{{session.dir}}/.state/plan.json"
+  ],
+  "required_checks": [
+    "plan_json_present_and_well_formed",
+    "every_step_has_verifier_report",
+    "verifier_report_carries_evidence_ref",
+    "verifier_verdict_in_allowed_enum",
+    "executor_did_not_self_certify",
+    "no_writes_to_do_prod",
+    "audit_chain_append_only",
+    "no_cross_session_writes"
+  ],
+  "forbidden_actions": [
+    "write_to_do_prod",
+    "modify_audit_chain",
+    "modify_canonical_policies",
+    "modify_schemas",
+    "self_certify_step_pass",
+    "skip_verifier_evidence",
+    "decide_workflow_meaning",
+    "auto_promote",
+    "auto_deploy",
+    "semantic_synthesis",
+    "self_trigger",
+    "memory_learn",
+    "auto_pin",
+    "modify_plan_json_outside_amendment"
+  ],
+  "allowed_current_states": ["PLAN", "SANDBOX", "EXECUTE"],
+  "allowed_next_states": ["SANDBOX", "EXECUTE", "VERIFY"],
+  "audit_events": [
+    "gogogo.invoked",
+    "gogogo.step_started",
+    "gogogo.step_passed",
+    "gogogo.step_failed",
+    "gogogo.completed",
+    "gogogo.hmac_rejected"
+  ],
+  "retry_policy": {
+    "max_retries": 3,
+    "retry_owner": "same_delegated_role",
+    "escalate_to": "NEEDS_HUMAN",
+    "preserve_failed_attempts": true,
+    "audit_each_attempt": true
+  }
+}

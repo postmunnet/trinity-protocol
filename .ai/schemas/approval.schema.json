@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trinity.local/schemas/approval.schema.json",
+  "title": "Trinity DDD Approval",
+  "description": "Operator approval of a decision_packet. See docs/specs/TRINITY_DDD_HUMAN_GATE_SPEC_V1.md §4.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["packet_id", "decided_by", "decided_at", "action"],
+  "properties": {
+    "packet_id": { "type": "string", "minLength": 1 },
+    "decided_by": { "type": "string", "const": "human" },
+    "decided_at": { "type": "string", "format": "date-time" },
+    "action": {
+      "type": "string",
+      "enum": ["promote", "deploy", "amend_approve"]
+    },
+    "notes": { "type": "string" },
+    "signature": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "scheme": { "type": "string" },
+        "value": { "type": "string" }
+      }
+    }
+  }
+}

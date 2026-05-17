@@ -1,0 +1,69 @@
+# Trinity Standard Session Graph
+# Spec ref: docs/specs/04_GRAPH_SPEC.md
+#
+# Every transition declares decided_by (D10):
+#   - kernel:   automatic state machine progression
+#   - verifier: deterministic rules pass/fail
+#   - policy:   gate evaluation (safety/RBAC)
+#   - human:    explicit human approval (PROMOTED, DEPLOYED)
+
+version: "1.0"
+name: standard
+description: "Default session lifecycle: sss -> vvv -> nnn -> gogogo -> ddd -> rrr"
+
+states:
+  - READY
+  - THINK
+  - SANDBOX
+  - DO
+  - VERIFIED
+  - PROMOTED
+  - DEPLOYED
+  - RETRO
+  - DONE
+
+initial_state: READY
+terminal_states: [DONE, DEAD]
+
+transitions:
+  - from: READY
+    to: THINK
+    trigger: sss
+    decided_by: kernel
+
+  - from: THINK
+    to: SANDBOX
+    trigger: nnn_pass
+    decided_by: kernel
+
+  - from: SANDBOX
+    to: DO
+    trigger: vvv_pass
+    decided_by: verifier
+
+  - from: DO
+    to: VERIFIED
+    trigger: gogogo_complete
+    decided_by: verifier
+
+  - from: VERIFIED
+    to: PROMOTED
+    trigger: promote_request
+    decided_by: human
+    require_human_approval: true
+
+  - from: PROMOTED
+    to: DEPLOYED
+    trigger: deploy_request
+    decided_by: human
+    require_human_approval: true
+
+  - from: DEPLOYED
+    to: RETRO
+    trigger: rrr
+    decided_by: kernel
+
+  - from: RETRO
+    to: DONE
+    trigger: rrr_complete
+    decided_by: kernel

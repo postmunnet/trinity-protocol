@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trinity.local/schemas/ritual_context.schema.json",
+  "title": "Trinity Ritual Context Schema",
+  "description": "Per-ritual typed-placeholder catalog. Authority: TRINITY_RITUAL_CONSTITUTION_V1_1_RC.md Article XVI (Template Injection Protection). One file per ritual at .ai/rituals/<ritual>/context.schema.json. Declares which {{type:identifier}} placeholders the write template may consume; kernel uses this to type-check substitution and preserve user input as data, never instruction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["context_schema_version", "ritual", "placeholders"],
+  "properties": {
+    "context_schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "ritual": {
+      "type": "string",
+      "enum": ["sss", "vvv", "nnn", "gogogo", "ddd", "rrr", "close"],
+      "description": "Must match parent directory name and ritual.contract.json.ritual."
+    },
+    "placeholders": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["identifier", "type", "required", "description"],
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+            "description": "Dotted lower-snake_case identifier. Used as {{type:identifier}} in write.template.md."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["plain_text", "markdown_escaped", "json_string", "path", "enum", "code_block", "evidence_ref"],
+            "description": "Article XVI typed-field enumeration. Kernel escapes substitution by type."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "If true, write template MUST consume this placeholder; missing context aborts the ritual."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 4
+          },
+          "enum_values": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Required iff type='enum'. Forbidden otherwise."
+          },
+          "source": {
+            "type": "string",
+            "description": "Optional hint about where the value originates (e.g. 'session.meta', 'plan_envelope.goal', 'user.answer.q1')."
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"type": {"const": "enum"}}, "required": ["type"]},
+            "then": {"required": ["enum_values"]}
+          },
+          {
+            "if": {"not": {"properties": {"type": {"const": "enum"}}, "required": ["type"]}},
+            "then": {"not": {"required": ["enum_values"]}}
+          }
+        ]
+      }
+    }
+  }
+}

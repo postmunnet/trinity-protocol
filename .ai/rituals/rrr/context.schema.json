@@ -1,0 +1,107 @@
+{
+  "context_schema_version": "1.0",
+  "ritual": "rrr",
+  "placeholders": [
+    {
+      "identifier": "session.slug",
+      "type": "plain_text",
+      "required": true,
+      "description": "Active session slug; appears in the retro header for attribution.",
+      "source": "session.meta.slug"
+    },
+    {
+      "identifier": "acceptance.verdict",
+      "type": "enum",
+      "required": true,
+      "description": "Aggregate acceptance verdict computed from verifier reports across the session. Mechanical (per T1, rrr does not synthesize meaning).",
+      "enum_values": ["PASS", "FAIL", "UNVERIFIED"],
+      "source": "acceptance.aggregate_verdict"
+    },
+    {
+      "identifier": "rrr_contract.verdict",
+      "type": "enum",
+      "required": true,
+      "description": "Verdict for rrr's own contract checks (memory_handling.mode==index, no auto_pin, no semantic_synthesis, delegated_call audited).",
+      "enum_values": ["PASS", "FAIL"],
+      "source": "rrr.self_check"
+    },
+    {
+      "identifier": "forbidden_path.violation_count",
+      "type": "plain_text",
+      "required": true,
+      "description": "Count of forbidden-path diff violations observed during the session (e.g. writes to .ai/policies/, .ai/audit/ in-place, .ai/schemas/).",
+      "source": "forbidden_path.diff.violations.length"
+    },
+    {
+      "identifier": "metrics.events_count",
+      "type": "json_string",
+      "required": true,
+      "description": "Total count of audit events emitted during the session (integer serialized as JSON string per typed-placeholder protocol).",
+      "source": "metrics.events_count"
+    },
+    {
+      "identifier": "metrics.graph_transitions_count",
+      "type": "json_string",
+      "required": true,
+      "description": "Total count of graph_state transitions during the session (integer serialized as JSON string).",
+      "source": "metrics.graph_transitions_count"
+    },
+    {
+      "identifier": "metrics.iterations_count",
+      "type": "json_string",
+      "required": true,
+      "description": "Count of vvv -> nnn -> gogogo iterations observed (integer serialized as JSON string).",
+      "source": "metrics.iterations_count"
+    },
+    {
+      "identifier": "metrics.gogogo_verdicts",
+      "type": "json_string",
+      "required": true,
+      "description": "Per-step verifier verdict tally across gogogo invocations, e.g. {\"PASS\":N,\"FAIL\":N,\"UNVERIFIED\":N}.",
+      "source": "metrics.gogogo_verdicts"
+    },
+    {
+      "identifier": "metrics.needs_human_escalations",
+      "type": "json_string",
+      "required": true,
+      "description": "Count of NEEDS_HUMAN escalations emitted during the session (integer serialized as JSON string).",
+      "source": "metrics.needs_human_escalations"
+    },
+    {
+      "identifier": "metrics.final_graph_state",
+      "type": "enum",
+      "required": true,
+      "description": "Final graph_state after rrr completes its body (before the RETRO -> DONE transition is committed by Kernel).",
+      "enum_values": ["DONE", "SEALED", "FAILED", "TERMINAL_FAILED"],
+      "source": "graph.current_state"
+    },
+    {
+      "identifier": "metrics.duration_seconds",
+      "type": "plain_text",
+      "required": true,
+      "description": "Wall-clock duration of the session, in seconds, from sss.invoked to rrr.invoked.",
+      "source": "metrics.duration_seconds"
+    },
+    {
+      "identifier": "graph_transitions_table",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Markdown table rendering of all graph_state transitions during the session, columns: ts_utc | from | to | trigger | decided_by. Escaped as data.",
+      "source": "graph.transitions"
+    },
+    {
+      "identifier": "acceptance_evidence_table",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Markdown table of acceptance evidence references, columns: step_id | verdict | verifier_report_path | sha256. Escaped as data.",
+      "source": "acceptance.evidence"
+    },
+    {
+      "identifier": "forbidden_path_diff",
+      "type": "markdown_escaped",
+      "required": true,
+      "description": "Markdown rendering of forbidden-path diff results (paths attempted, allowed/denied, audit event refs). Escaped as data.",
+      "source": "forbidden_path.diff"
+    }
+  ]
+}

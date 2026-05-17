@@ -1,0 +1,114 @@
+{
+  "check_template_version": "1.0",
+  "required_artifacts": [
+    "{{session.dir}}/THINK/RETRO.md",
+    "{{session.dir}}/.state/rrr_complete",
+    "{{session.dir}}/.state/rrr/memory_index_result.json"
+  ],
+  "required_headings": [
+    "# Retrospective",
+    "## Verdict",
+    "## Metrics",
+    "## Graph transitions",
+    "## Acceptance evidence",
+    "## Forbidden-path diff",
+    "## Notes"
+  ],
+  "required_fields": {
+    "{{session.dir}}/.state/rrr/memory_index_result.json": "index_called+verb+result"
+  },
+  "required_evidence_refs": {
+    "rrr.invoked_audit_event": {
+      "kind": "audit_event",
+      "event_type": "rrr.invoked",
+      "required": true,
+      "description": "rrr.invoked MUST be appended to .ai/audit/events.ndjson before the retro body runs."
+    },
+    "rrr.delegated_call_audit_event": {
+      "kind": "audit_event",
+      "event_type": "rrr.delegated_call",
+      "required": true,
+      "description": "Per RRR Delegation Contract T4, every external invocation (memory-cli index) MUST emit rrr.delegated_call carrying tool, action, target, result, artifact_sha256."
+    },
+    "rrr.completed_audit_event": {
+      "kind": "audit_event",
+      "event_type": "rrr.completed",
+      "required": true,
+      "description": "rrr.completed MUST carry tier, memory_index summary, and memory_index_severity per T3."
+    },
+    "memory_index_result.artifact": {
+      "kind": "artifact_ref",
+      "required": true,
+      "description": "memory_index_result.json MUST record the verb invoked (must be 'index'), the result (PASS|FAIL), and the artifact sha256."
+    },
+    "acceptance.evidence_refs": {
+      "kind": "artifact_ref",
+      "required": true,
+      "description": "Acceptance evidence table MUST reference verifier_report.json artifacts produced during gogogo (Article VIII)."
+    }
+  },
+  "required_structural_predicates": [
+    {"predicate": "memory_handling.mode == index", "required": true},
+    {"predicate": "memory_handling.verb != learn", "required": true},
+    {"predicate": "auto_pin_attempts == 0", "required": true},
+    {"predicate": "rrr.semantic_synthesis == false", "required": true},
+    {"predicate": "audit.rrr_delegated_call.count >= 1", "required": true},
+    {"predicate": "audit.chain.appended_only == true", "required": true},
+    {"predicate": "session.current_state in [DEPLOY, RETRO]_at_invocation", "required": true},
+    {"predicate": "session.next_state in [RETRO, DONE]_after_success", "required": true},
+    {"predicate": "retry.attempts <= 3", "required": true},
+    {"predicate": "retry.preserve_failed_attempts == true", "required": true}
+  ],
+  "required_phrases": [],
+  "forbidden_phrases": [
+    "{{user_input}}",
+    "lessons learned",
+    "key takeaway",
+    "memory-cli learn",
+    "auto-pinned",
+    "memory learned",
+    "canonical truth",
+    "verified as final truth",
+    "self-certified",
+    "policy is changed"
+  ],
+  "forbidden_actions": [
+    "memory_cli_learn",
+    "auto_pin",
+    "compose_semantic_synthesis",
+    "compose_lessons_learned",
+    "modify_audit_chain_in_place",
+    "modify_canonical_policies",
+    "modify_schemas",
+    "self_certify_acceptance",
+    "self_trigger",
+    "decide_workflow_meaning",
+    "silence_index_failure",
+    "auto_promote",
+    "auto_deploy"
+  ],
+  "allowed_roles": [
+    "Retro Writer",
+    "Kernel",
+    "Memory CLI"
+  ],
+  "forbidden_roles": [
+    "Transport",
+    "Executor Agent",
+    "Planning Agent",
+    "Verifier Agent",
+    "Presentation Synthesizer",
+    "Session Initializer",
+    "Clarification Agent"
+  ],
+  "state_transition": {
+    "from": ["DEPLOY", "RETRO"],
+    "to": ["RETRO", "DONE"]
+  },
+  "failure_behavior": {
+    "on_missing_artifact": "BLOCK",
+    "on_missing_evidence": "BLOCK",
+    "on_forbidden_phrase": "BLOCK",
+    "on_optional_failure": "WARN"
+  }
+}

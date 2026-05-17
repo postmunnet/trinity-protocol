@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trinity.local/schemas/decision_packet.schema.json",
+  "title": "Trinity DDD Decision Packet",
+  "description": "Bundle presented to the human operator for a ddd decision. See docs/specs/TRINITY_DDD_HUMAN_GATE_SPEC_V1.md §3. RecordProxy-aligned: presentation pins 9 required sub-fields per §3.1 (Addendum v1.0.1 §E Cognitive Presentation Protocol); verifier_reports[] items propagate capture_refs from the underlying verifier report.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "session", "created_ts", "proposing_role", "requested_action", "verifier_reports", "presentation", "expires_ts"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "session": { "type": "string", "minLength": 1 },
+    "created_ts": { "type": "string", "format": "date-time" },
+    "proposing_role": {
+      "type": "string",
+      "enum": ["planner", "executor", "verifier"]
+    },
+    "requested_action": {
+      "type": "string",
+      "enum": ["promote", "deploy", "abort", "amend"]
+    },
+    "verifier_reports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "hash"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "capture_refs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true,
+            "default": [],
+            "description": "Propagated from the verifier_report.capture_refs[] field (TRINITY_VERIFIER_CONTRACT_V1 §5). DDD MUST propagate these into presentation.capture_refs[] for operator drill-down."
+          }
+        }
+      }
+    },
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "3-layer packet from presentation_synthesizer agent. Required fields pinned per TRINITY_DDD_HUMAN_GATE_SPEC_V1 §3.1 (Addendum v1.0.1 §E Cognitive Presentation Protocol).",
+      "required": [
+        "cognitive_protocol_version",
+        "summary",
+        "convergence",
+        "dissent_flags",
+        "founder_decisions_required",
+        "raw_artifacts_available",
+        "panel_diversity",
+        "synthesizer_not_in_opinion_panel",
+        "capture_refs"
+      ],
+      "properties": {
+        "cognitive_protocol_version": {
+          "type": "string",
+          "const": "v1.0.1",
+          "description": "Pins to Addendum v1.0.1 §E. Future versions require Addendum (Article XXIX)."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "1-3 sentence human-readable précis of what is being decided."
+        },
+        "convergence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Bulleted facts the verifier/planner/executor agreed on. May be empty when no agreement existed."
+        },
+        "dissent_flags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Bulleted points of disagreement / unresolved tension. Empty array means explicitly 'no dissent flagged' (anti-groupthink)."
+        },
+        "founder_decisions_required": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "The specific decisions the operator MUST make; each entry is one decision phrased as a question (anti-rubber-stamp)."
+        },
+        "raw_artifacts_available": {
+          "type": "boolean",
+          "description": "True if the operator can drill into raw evidence (capture blobs, verifier reports, audit chain slice). False MUST be paired with an explanation in summary."
+        },
+        "panel_diversity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["roles", "distinct_models", "distinct_layers"],
+          "description": "Describes which roles/models/pyramid-layers contributed to the convergence/dissent (anti-monoculture). distinct_layers >= 2 required on COLD tier (constraint enforced by aggregator).",
+          "properties": {
+            "roles": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Role names: planner / executor / verifier / human / agent:<name> / tool:<name>"
+            },
+            "distinct_models": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of distinct LLM models that voted. 0 = deterministic-only verdict (no LLM)."
+            },
+            "distinct_layers": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4,
+              "description": "Count of distinct Pyramid of Judgment layers (1-4) that contributed."
+            }
+          }
+        },
+        "synthesizer_not_in_opinion_panel": {
+          "type": "boolean",
+          "description": "True asserts the presentation_synthesizer agent did NOT vote in the convergence/dissent panel. Required-true on COLD tier per Addendum v1.0.1 §E 'the messenger is not a juror' (anti-synthesis-collapse). Aggregator enforces tier-conditional requirement."
+        },
+        "capture_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "ULID list of captures.capture_id rows backing the verifier reports. Subset of the union of verifier_reports[*].capture_refs. Operator can navigate to <session>/CAPTURE/refs/<capture_id>.json to inspect raw evidence (anti-summary-only)."
+        }
+      }
+    },
+    "expires_ts": { "type": "string", "format": "date-time" }
+  }
+}
