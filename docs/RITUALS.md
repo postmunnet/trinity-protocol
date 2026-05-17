@@ -1,180 +1,191 @@
-# Trinity Rituals — Operator Reference
+# Trinity Rituals - Operator Reference
 
-เอกสารนี้เป็น operator-facing reference สำหรับ ritual ทั้ง 7 ตัวใน Trinity
+Language: English | [ไทย](RITUALS_TH.md)
 
-อ่านแบบเล่าที่มาเหตุผลว่าทำไม Trinity ถึงเลือกแนวนี้ ดูได้ที่
-[`ORIGIN.md`](ORIGIN.md)
+This document is the operator-facing reference for the seven Trinity rituals.
 
-รายละเอียดเชิง contract แบบ technical (state machine, schema, audit format)
-อยู่ใน [`constitution/contracts/TRINITY_RITUAL_CONTRACT_V1.md`](constitution/contracts/TRINITY_RITUAL_CONTRACT_V1.md)
-และ specs ที่เกี่ยวข้องใต้ [`specs/`](specs/)
+For the narrative origin story behind these rituals, read [`ORIGIN.md`](ORIGIN.md).
+
+The technical contract for state machines, schemas, audit format, and runtime
+behavior lives in
+[`constitution/contracts/TRINITY_RITUAL_CONTRACT_V1.md`](constitution/contracts/TRINITY_RITUAL_CONTRACT_V1.md)
+and the related specs under [`specs/`](specs/).
 
 ---
 
 ## Quick Reference
 
-| Ritual | ใช้เมื่อ | หน้าที่หลัก |
+| Ritual | When to use it | Main purpose |
 |---|---|---|
-| `sss` | ก่อนเริ่ม session | สร้าง session capsule + snapshot state ตั้งต้น |
-| `vvv` | ก่อน plan/execute | นิยาม goal / scope / constraint / acceptance / risk |
-| `nnn` | หลัง vvv ผ่าน | แปลง goal เป็น plan + step + expected artifact |
-| `gogogo` | หลัง plan ผ่าน | explicit execution gate — อนุญาตให้ลงมือ |
-| `ddd` | หลัง execute | ตรวจ diff / damage / scope creep จากของจริง |
-| `rrr` | หลังจบงาน หรือเจอ failure | เปลี่ยนประสบการณ์เป็นบทเรียน (retro) |
-| `close` | จบ session | ปิด session อย่างมีสถานะชัดเจน |
+| `sss` | Before starting a session | Create the session capsule and initial state snapshot |
+| `vvv` | Before planning or execution | Define goal, scope, constraints, acceptance, and risk |
+| `nnn` | After `vvv` passes | Normalize the goal into a plan, steps, and expected artifacts |
+| `gogogo` | After the plan is accepted | Explicit execution gate |
+| `ddd` | After execution | Inspect diff, damage, and scope creep from real files |
+| `rrr` | After completion or failure | Turn the session into retro and memory handoff |
+| `close` | At session end | Close with explicit final state |
 
-ลำดับมาตรฐาน: `sss` → `vvv` → `nnn` → `gogogo` → `ddd` → `rrr` → `close`
+Standard sequence:
 
----
-
-## `sss` — Session Capsule / Snapshot / Starting State
-
-ใช้ก่อนเริ่มงานสำคัญ
-
-หน้าที่ของ `sss` คือสร้าง session capsule และเก็บสถานะตั้งต้นก่อนเริ่มลงมือ
-
-มันช่วยตอบคำถามว่า:
-
-- ตอนเริ่มงาน state เป็นอย่างไร
-- มีไฟล์สำคัญอะไรบ้าง
-- context ที่ต้องรู้คืออะไร
-- ถ้าทำพังจะย้อนกลับไปจุดไหน
-- session นี้กำลังแก้เรื่องอะไร
-
-`sss` ทำให้การเริ่มงานไม่ใช่การกระโดดเข้าไปแก้ทันที
-แต่เริ่มจากการสร้างจุดอ้างอิงก่อน
+```text
+sss -> vvv -> nnn -> gogogo -> ddd -> rrr -> close
+```
 
 ---
 
-## `vvv` — Goal / Scope / Constraint / Acceptance / Risk
+## `sss` - Session Capsule / Snapshot / Starting State
 
-ใช้เป็น gate ก่อน planning หรือ execution
+Use `sss` before starting meaningful work.
 
-`vvv` บังคับให้ต้องตอบ 5 คำถามหลัก:
+Its job is to create a session capsule and preserve the initial state before
+changes begin.
 
-1. **Goal** — งานนี้สำเร็จหน้าตาเป็นอย่างไร
-2. **Scope** — อะไรอยู่ในขอบเขต และอะไรอยู่นอกขอบเขต
-3. **Constraint** — อะไรห้ามแตะ ห้ามทำ หรือห้ามเปลี่ยน
-4. **Acceptance** — จะรู้ได้อย่างไรว่างานเสร็จจริง
-5. **Risk** — failure mode ที่น่ากลัวที่สุดคืออะไร
+It answers:
 
-สิ่งนี้สำคัญมาก เพราะปัญหาใหญ่ของ AI คือมันมักลงมือก่อนเข้าใจขอบเขต
+- What was the state at the start?
+- Which important files existed?
+- What context must be carried into the task?
+- Where can we roll back if the work breaks?
+- What is this session trying to change?
 
-`vvv` ทำให้ก่อนจะเริ่มงาน ต้องนิยามสนามให้ชัดก่อน
+`sss` prevents a session from starting as an immediate edit. It starts by
+creating a reference point.
 
 ---
 
-## `nnn` — Normalize / Plan / Next Action
+## `vvv` - Goal / Scope / Constraint / Acceptance / Risk
 
-ใช้เพื่อจัดรูปงานให้เป็นแผนที่ทำได้จริง
+Use `vvv` as the gate before planning or execution.
 
-หลังจากรู้ goal และ scope แล้ว `nnn` ช่วยแปลงงานให้เป็น:
+It forces five questions to be answered:
+
+1. **Goal** - What does success look like?
+2. **Scope** - What is in scope and out of scope?
+3. **Constraint** - What must not be touched, changed, or attempted?
+4. **Acceptance** - How will we know the work is really complete?
+5. **Risk** - What failure mode matters most?
+
+This matters because AI agents often act before they fully understand the
+boundary of the task.
+
+`vvv` defines the field before work begins.
+
+---
+
+## `nnn` - Normalize / Plan / Next Action
+
+Use `nnn` to turn the clarified goal into an executable plan.
+
+After goal and scope are known, `nnn` produces:
 
 - plan
-- step
-- dependency
-- expected artifact
+- steps
+- dependencies
+- expected artifacts
 - verification path
 - next action
 
-เป้าหมายของ `nnn` ไม่ใช่ให้ AI คิดเยอะเฉย ๆ
-แต่ให้มันสร้างแผนที่ตรวจสอบได้ก่อน execute
+The goal is not to make the AI think longer for its own sake. The goal is to
+produce a plan that can be inspected before execution.
 
 ---
 
-## `gogogo` — Explicit Execution Gate
+## `gogogo` - Explicit Execution Gate
 
-ใช้เป็นสัญญาณว่าอนุญาตให้ลงมือได้
+Use `gogogo` when the human operator explicitly approves execution.
 
-ก่อนมี gate นี้ ปัญหาที่เจอบ่อยคือ AI ชอบเริ่มแก้เองทันที
-ทั้งที่ผมยังแค่ถามหรือกำลัง brainstorm
+Before this gate existed, AI agents often started editing while the human was
+still asking a question or exploring options.
 
-`gogogo` เลยกลายเป็นเส้นแบ่งชัดเจนระหว่าง:
+`gogogo` creates a clear line between:
 
-- กำลังคิด
-- กำลังวางแผน
-- กับ "อนุญาตให้ execute แล้ว"
+- thinking
+- planning
+- approved execution
 
-หลักการคือ:
+Principle:
 
-> ถ้ายังไม่มี explicit execution gate
-> อย่าทำ action ที่เปลี่ยน state สำคัญ
-
----
-
-## `ddd` — Diff / Inspect / Damage Check
-
-ใช้หลัง execute เพื่อดูว่าเปลี่ยนอะไรจริง
-
-ปัญหาหนึ่งของ AI คือมันมักอธิบายว่าแก้อะไรไป
-แต่สิ่งที่มันพูดอาจไม่ตรงกับสิ่งที่เกิดขึ้นจริงในไฟล์
-
-`ddd` จึงเน้นตรวจจากของจริง:
-
-- diff คืออะไร
-- ไฟล์ไหนถูกแก้
-- มีไฟล์ที่ไม่ควรถูกแตะไหม
-- scope creep เกิดขึ้นไหม
-- change ตรงกับ plan หรือไม่
-- มี damage ที่ต้อง rollback ไหม
-
-`ddd` คือ ritual ที่ย้ำว่า:
-
-> อย่าเชื่อคำอธิบายก่อนเห็น diff
+> Without an explicit execution gate, do not perform actions that materially
+> change state.
 
 ---
 
-## `rrr` — Retro / Lesson / Memory
+## `ddd` - Diff / Inspect / Damage Check
 
-ใช้หลังจบงานหรือหลังเจอ failure
+Use `ddd` after execution to inspect what actually changed.
 
-หน้าที่ของ `rrr` คือเปลี่ยนประสบการณ์ให้กลายเป็นบทเรียน
+AI explanations can differ from the real diff. `ddd` checks the files and
+artifacts, not just the agent's description.
 
-ไม่ใช่แค่สรุปว่างานเสร็จ
-แต่ต้องตอบว่า:
+It asks:
 
-- เกิดอะไรขึ้น
-- อะไรทำให้สำเร็จ
-- อะไรเกือบพัง
-- มี pattern อะไรที่ควรจำ
-- ครั้งหน้าควรทำอะไรต่างออกไป
-- ควรเพิ่ม rule หรือ verifier อะไรไหม
+- What is the diff?
+- Which files changed?
+- Did anything outside scope change?
+- Did scope creep occur?
+- Does the change match the plan?
+- Is there damage that needs rollback?
 
-`rrr` คือสะพานจากงานหนึ่งไปสู่งานถัดไป
-ทำให้ session ไม่หายไปเฉย ๆ หลังปิด chat
+`ddd` reinforces the rule:
+
+> Do not trust the explanation before seeing the diff.
 
 ---
 
-## `close` — Close Session / Final State
+## `rrr` - Retro / Lesson / Memory
 
-ใช้ปิด session อย่างมีสถานะ
+Use `rrr` after completion or after an important failure.
 
-ก่อนมี `close` หลาย session จบแบบลอย ๆ:
+Its job is to turn experience into a lesson.
 
-- ไม่รู้ว่างานจบจริงไหม
-- ไม่รู้ว่า test ผ่านหรือยัง
-- ไม่รู้ว่ามี artifact ไหนสำคัญ
-- ไม่รู้ว่าต้องทำอะไรต่อ
-- ไม่รู้ว่ายังมี risk ค้างไหม
+It is not only a completion summary. It answers:
 
-`close` ทำให้ session ต้องมี final state:
+- What happened?
+- What made the work succeed?
+- What nearly failed?
+- What pattern should be remembered?
+- What should be done differently next time?
+- Should a rule or verifier be added?
 
-- done หรือ not done
-- artifact อยู่ไหน
-- verify ผ่านไหม
-- มี pending issue อะไร
-- next step คืออะไร
-- มีอะไรต้องจำเข้า retro หรือ memory ไหม
+`rrr` is the bridge from one session to the next. It prevents important context
+from disappearing into chat history.
 
-จากตรงนี้ session ไม่ใช่แค่บทสนทนา
-แต่กลายเป็นหน่วยงานที่ปิดบัญชีได้
+In Trinity v0.1.0 ritual flow, `rrr` delegates memory handoff through
+`memory-cli index`, not `memory-cli learn`.
+
+---
+
+## `close` - Close Session / Final State
+
+Use `close` to end a session with explicit state.
+
+Without `close`, sessions tend to end ambiguously:
+
+- Was the work really done?
+- Did tests pass?
+- Which artifacts matter?
+- What remains pending?
+- What risk remains?
+
+`close` records:
+
+- done or not done
+- artifact locations
+- verification result
+- pending issues
+- next step
+- anything that should be carried into retro or memory
+
+At that point, a session is not just a conversation. It becomes a unit of work
+that can be closed.
 
 ---
 
 ## See Also
 
-- [`ORIGIN.md`](ORIGIN.md) — ที่มาและเหตุผลเบื้องหลัง ritual ทั้งหมด
-- [`constitution/contracts/TRINITY_RITUAL_CONTRACT_V1.md`](constitution/contracts/TRINITY_RITUAL_CONTRACT_V1.md) — canonical contract
-- [`operator-guide-th/03_RITUAL_LOOP.md`](operator-guide-th/03_RITUAL_LOOP.md) — คู่มือใช้งาน ritual loop (ไทย)
-- [`operator-guide-en/03_RITUAL_LOOP.md`](operator-guide-en/03_RITUAL_LOOP.md) — ritual loop operator guide (English)
-- [`specs/INDEX.md`](specs/INDEX.md) — master spec index
+- [`ORIGIN.md`](ORIGIN.md) - origin story and rationale behind the rituals
+- [`RITUALS_TH.md`](RITUALS_TH.md) - Thai version
+- [`constitution/contracts/TRINITY_RITUAL_CONTRACT_V1.md`](constitution/contracts/TRINITY_RITUAL_CONTRACT_V1.md) - canonical contract
+- [`operator-guide-en/03_RITUAL_LOOP.md`](operator-guide-en/03_RITUAL_LOOP.md) - ritual loop operator guide
+- [`operator-guide-th/03_RITUAL_LOOP.md`](operator-guide-th/03_RITUAL_LOOP.md) - Thai ritual loop operator guide
+- [`specs/INDEX.md`](specs/INDEX.md) - master spec index
