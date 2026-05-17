@@ -16,6 +16,8 @@ import os
 import sys
 from pathlib import Path
 
+from typer.main import get_command
+
 # conftest is at <repo>/.ai/cli/tests/conftest.py
 TESTS_DIR = Path(__file__).resolve().parent
 AI_DIR = TESTS_DIR.parent.parent          # <repo>/.ai
@@ -27,3 +29,13 @@ if str(AI_DIR) not in sys.path:
 
 # Pin cwd to repo root so legacy tests using `.ai/...` paths resolve.
 os.chdir(REPO_ROOT)
+
+
+def typer_app_has_option(app, option: str) -> bool:
+    """Return whether a Typer app exposes an option, independent of help rendering."""
+    command = get_command(app)
+    return any(
+        option in getattr(param, "opts", [])
+        or option in getattr(param, "secondary_opts", [])
+        for param in command.params
+    )

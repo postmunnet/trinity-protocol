@@ -22,6 +22,7 @@ from cli.commands.rrr import HMAC_REJECT_EXIT, _run, app
 from cli.core.audit import AuditChain
 from cli.core.auth import ENV_NAME, compute_sig
 from cli.core.loop import Loop
+from conftest import typer_app_has_option
 from test_ddd import _seed_at_verified
 
 SECRET = "TEST_KERNEL_SECRET_DO_NOT_REUSE"
@@ -76,7 +77,7 @@ def test_hmac_flag_appears_in_rrr_help():
     runner = CliRunner()
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "--hmac-envelope-file" in result.stdout
+    assert typer_app_has_option(app, "--hmac-envelope-file")
 
 
 # A_VALID --------------------------------------------------------------
