@@ -16,6 +16,34 @@ note: "Translation of ../01_TOOL_CONTRACT.md (essential parts)"
 
 ---
 
+## Public Freeze Status
+
+Public ecosystem messaging should treat the Tool Contract as:
+
+```text
+Tool Contract v1.0 = freeze candidate
+Current working spec = v1.1.0-draft
+```
+
+Before declaring a stable external tool interface, Trinity must freeze at
+least these 10 surfaces:
+
+1. Input envelope
+2. Output envelope
+3. Exit code meaning
+4. Verdict schema
+5. Artifact declaration
+6. Error taxonomy
+7. Retry semantics
+8. Idempotency expectation
+9. Audit log requirements
+10. Security boundary
+
+Until that checklist is complete, public docs should say **v1.0 freeze
+candidate** or **v1.1 draft working spec**, not stable interface.
+
+---
+
 ## 0. Compliance Levels
 
 | Level | Description |
@@ -48,7 +76,9 @@ note: "Translation of ../01_TOOL_CONTRACT.md (essential parts)"
 - ❌ Programming language (any works)
 - ❌ External libraries
 - ❌ Database choice
-- ❌ **MCP protocol** — Trinity is **CLI-first ONLY**
+- ❌ **MCP protocol as default core path** — Trinity is CLI-first by default.
+  MCP-only capabilities may be wrapped by an adapter, but they must enter
+  Trinity through the Tool Contract envelope before they reach the audit chain.
 
 ---
 
@@ -559,8 +589,8 @@ memory-cli --cmd "helper fresh-search 'auth bug'"
 version: 1
 tools:
   - name: browser-cli
-    path: <workspace-root>/browser-cli
-    bin: node <workspace-root>/browser-cli/index.js
+    path: /<home>/<user>/Downloads/yai_project/browser-cli
+    bin: node /<home>/<user>/Downloads/yai_project/browser-cli/index.js
     schema_version: "2"
     capabilities: [browser, dom, screenshot]
     policy_default: normal
