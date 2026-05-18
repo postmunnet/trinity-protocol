@@ -110,11 +110,11 @@ note: "Translation of ../INDEX.md — refer to Thai version for latest details"
 
 ## 3. Project Family
 
-`<workspace-root>/` contains:
+`/<home>/<user>/Downloads/yai_project/` contains:
 
 ```
 yai_project/
-├── TRINITY_LEGACY/          ← Trinity kernel (development)
+├── TRINITY_ULTIMAT/          ← Trinity kernel (development)
 │   ├── .ai/                  ← Trinity runtime: cli, sessions, audit, policies
 │   ├── archive/              ← Legacy AI docs
 │   ├── references/           ← External AI harness study
@@ -493,7 +493,7 @@ kernel    → mechanical
 ## 14. FAQ
 
 ### Q: Why don't you use MCP at all?
-**A:** MCP locks to Claude Code. Trinity vision = tool-agnostic (Claude/Codex/Gemini/Cursor all work). See [`../00_BLUEPRINT.md`](../00_BLUEPRINT.md) §9.
+**A:** Trinity does not ban MCP. The default path is CLI-first because Trinity optimizes for token economy, observability, composability, vendor portability, and replayable audit boundaries. MCP can be an optional bridge when wrapped through the Tool Contract envelope. See [`../00_BLUEPRINT.md`](../00_BLUEPRINT.md) §9.
 
 ### Q: Why not build a new AI harness?
 **A:** Anthropic uses dozens of devs × 2 years on Claude Code (98.4% harness). Don't replicate. Use vendor + thin shim.

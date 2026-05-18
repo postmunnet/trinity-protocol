@@ -121,11 +121,11 @@ Going to migrate <upstream-project>?   → INDEX → 10 → 09
 
 ## 3. Project Family
 
-`<workspace-root>/` มีโฟลเดอร์เกี่ยวข้องดังนี้:
+`/<home>/<user>/Downloads/yai_project/` มีโฟลเดอร์เกี่ยวข้องดังนี้:
 
 ```text
 yai_project/
-├── TRINITY_LEGACY/          ← Trinity kernel (development)
+├── TRINITY_ULTIMAT/          ← Trinity kernel (development)
 │   ├── .ai/                  ← Trinity runtime: cli, sessions, audit, policies, schemas
 │   ├── archive/              ← Legacy AI docs, old sessions
 │   ├── references/           ← External AI harness references (claw-code, openclaude, etc.)
@@ -171,7 +171,7 @@ yai_project/
 ### Cross-relationships
 
 ```text
-TRINITY_LEGACY/           ← Source of truth for kernel + specs
+TRINITY_ULTIMAT/           ← Source of truth for kernel + specs
         ↓ used by
 <upstream-project>/                    ← Real production project
         ↓ informs
@@ -796,7 +796,7 @@ Phase 10   Extension Platform        🌐 Future
 ## 14. FAQ
 
 ### Q: ทำไมไม่ใช้ MCP เลย?
-**A:** MCP ผูกกับ Claude Code อย่างเดียว — vision คือ tool-agnostic ที่ Claude/Codex/Gemini/Cursor ใช้ได้หมด ผ่าน CLI ดู [`00_BLUEPRINT.md` §9](00_BLUEPRINT.md#9-mcp-stance--locked).
+**A:** Trinity ไม่ได้ ban MCP แต่ default path เป็น CLI-first เพราะต้องการ token economy, observability, composability, vendor portability และ auditability ที่ตรวจซ้ำได้ MCP ใช้ได้เป็น optional bridge เมื่อถูก wrap ผ่าน Tool Contract envelope ดู [`00_BLUEPRINT.md` §9](00_BLUEPRINT.md#9-mcp-stance--cli-first-mcp-optional).
 
 ### Q: ทำไมไม่สร้าง AI harness ใหม่ล่ะ?
 **A:** Anthropic ใช้ทีมหลายสิบคน + 2 ปีทำ Claude Code (98.4% harness) — เราไม่ควรทำซ้ำ ใช้ของ vendor + ทำ shim บาง ๆ ดู [`07_SHIM_SPEC.md`](07_SHIM_SPEC.md).

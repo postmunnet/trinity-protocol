@@ -312,28 +312,90 @@ Schema          = ABI
 
 ---
 
-## 9. MCP Stance — LOCKED
+## 9. MCP Stance — CLI-first, MCP-optional
 
 ```text
-Core protocol           = CLI-first ONLY
-External MCP servers    = ❌ ไม่ใช้ (Playwright/Morphllm/Sequential ตัด)
-Vendor built-in tools   = ✅ ใช้ตามปกติ (Read/Write/Edit/Bash ของ Claude Code)
-HTTP/API                = optional bridge (อนาคต)
+Default path:
+CLI tool -> Tool Contract -> Audit Chain
+
+Optional bridge:
+MCP capability -> MCP adapter -> Tool Contract -> Audit Chain
 ```
 
-### Replacement Mapping (committed)
+Trinity is CLI-first by default.
 
-| MCP เดิม | แทนด้วย |
-|---------|---------|
-| `mcp__playwright__*` (13 tools) | `browser-cli` |
-| `mcp__morphllm-fast-apply__*` (8 tools) | Vendor's Read/Write/Edit/Glob |
-| `mcp__sequential-thinking__*` | ai-docs workflow + Trinity loop |
-| `mcp__ide__executeCode` | คงไว้ (vendor IDE bridge) |
+This is not because MCP is bad. It is because Trinity optimizes for token
+economy, observability, composability, vendor portability, and auditability.
 
-### เหตุผล
-- <upstream-project> ใช้ Playwright MCP — แต่ browser-cli replace ได้เกือบ 100%
-- CLI-first = tool-agnostic จริง (Claude/Codex/Gemini/Cursor ใช้ตัวเดียวกัน)
-- MCP ผูกกับ Claude Code อย่างเดียว — ขัด vision
+### 9.1 Token Economy
+
+MCP tool descriptions consume context window every session.
+
+As the number of MCP servers grows, the model receives more tool descriptions
+before useful work begins. CLI tools invoked through the vendor harness shell
+have near-zero marginal token overhead because the shell tool is already
+available.
+
+Trinity can run 1 or 100 CLI tools without injecting 100 tool descriptions into
+the model context.
+
+### 9.2 Observability
+
+Trinity's core principle is:
+
+```text
+Trust artifacts, not claims.
+```
+
+CLI tools expose their boundary through stdin, stdout, stderr, exit code,
+files, and NDJSON logs. Those boundaries can be captured, hashed, audited, and
+replayed.
+
+MCP servers may hide behavior behind host-managed tool calls, schema handling,
+retry behavior, internal process state, or server-side side effects. For
+Trinity, opaque tool boundaries weaken the audit chain.
+
+### 9.3 Composability
+
+CLI tools follow Unix composition. They can be scripted, tested, mocked,
+diffed, logged, and replayed outside any single vendor runtime.
+
+Trinity prefers tools that can be tested with:
+
+```bash
+./tool < input.json > output.json
+```
+
+### 9.4 Vendor Surface Area
+
+MCP introduces protocol and host compatibility concerns. Different vendors may
+support different MCP behaviors, versions, permission models, and invocation
+semantics.
+
+CLI tools remain portable across Claude Code, Codex, Cursor, Gemini CLI, shell
+scripts, and CI environments.
+
+### 9.5 Governance Boundary
+
+Vendor harnesses are hosts selected by the operator. External MCP servers are
+runtime dependencies that may be injected into the session outside Trinity's
+default control path.
+
+Trinity accepts vendor harnesses as execution hosts. It does not accept opaque
+tool injection as the default control surface.
+
+### 9.6 MCP Is Not Banned
+
+MCP may be supported as an optional bridge.
+
+If a capability is MCP-only and valuable, Trinity can wrap it through a Tool
+Contract envelope:
+
+```text
+MCP capability -> adapter -> input/output envelope -> artifacts -> audit
+```
+
+MCP is an adapter, not the core.
 
 ---
 
@@ -703,5 +765,5 @@ Audit              = NDJSON logs
 
 ## Changelog
 
-- **v2.0.0 (2026-04-28)** — Major revision: 10 decisions committed, vocabulary locked, 5 critical fixes integrated (Brain redefined, Verifier rules introduced, Goal tree mandated, Graph authority enforced, Bootstrap Pack added). MCP stance hardened to "CLI-first only".
+- **v2.0.0 (2026-04-28)** — Major revision: 10 decisions committed, vocabulary locked, 5 critical fixes integrated (Brain redefined, Verifier rules introduced, Goal tree mandated, Graph authority enforced, Bootstrap Pack added). MCP stance clarified as CLI-first by default, MCP-optional through Tool Contract adapters.
 - **v1.0.0 (2026-04-28)** — Initial draft based on user's blueprint synthesis

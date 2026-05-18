@@ -6,7 +6,7 @@ status: revised
 last-updated: 2026-04-28
 applies-to: All CLI tools in Trinity OS userland
 reference-implementation: browser-cli
-revision-notes: "v1.1 — added Action Namespace, Contract Compliance Test, MCP stance hardened"
+revision-notes: "v1.1 — added Action Namespace, Contract Compliance Test, MCP stance clarified as CLI-first default with optional bridge"
 ---
 
 # Trinity Tool Contract v1.1
@@ -15,6 +15,34 @@ revision-notes: "v1.1 — added Action Namespace, Contract Compliance Test, MCP 
 >
 > ถ้า tool ไม่ตามสัญญานี้ — Trinity kernel จะไม่ orchestrate ได้
 > ถ้า tool ตามสัญญานี้ครบ — เสียบกับ Trinity ได้ทันทีโดยไม่ต้องแก้ kernel
+
+---
+
+## Public Freeze Status
+
+Public ecosystem messaging should treat the Tool Contract as:
+
+```text
+Tool Contract v1.0 = freeze candidate
+Current working spec = v1.1.0-draft
+```
+
+ก่อนประกาศ stable interface ต้อง freeze อย่างน้อย 10 เรื่องนี้:
+
+1. Input envelope
+2. Output envelope
+3. Exit code meaning
+4. Verdict schema
+5. Artifact declaration
+6. Error taxonomy
+7. Retry semantics
+8. Idempotency expectation
+9. Audit log requirements
+10. Security boundary
+
+จนกว่า checklist นี้จะปิดครบ ห้ามสื่อสารว่า external tool interface เป็น
+stable แล้ว ให้ใช้คำว่า **v1.0 freeze candidate** หรือ **v1.1 draft working
+spec** แทน
 
 ---
 
@@ -52,10 +80,11 @@ Tool compliance assessment ทำผ่าน `trinity tool verify <tool-name>` 
 - ❌ Programming language (Node/Python/Rust/Go ทั้งหมดได้)
 - ❌ External library choices
 - ❌ Database choice (FTS5, ChromaDB, etc.)
-- ❌ **MCP protocol** — Trinity is **CLI-first ONLY**. External MCP servers ≠ core path.
+- ❌ **MCP protocol as default core path** — Trinity is CLI-first by default.
   - Vendor harness's built-in tools (Read/Write/Edit/Bash) = ใช้ตามปกติ (ไม่กระทบ)
-  - External MCP servers (Playwright/Morphllm/Sequential) = ❌ ไม่ใช่ core
-  - Replacement: ทุก capability ทำเป็น CLI tool ตาม contract นี้
+  - External MCP servers = optional bridge only, not the default control path
+  - MCP-only capability ต้องถูก wrap ผ่าน Tool Contract envelope ก่อนเข้า audit chain
+  - Default replacement: capability สำคัญควรมี CLI tool ตาม contract นี้
 
 ### 1.3 Non-goals
 - ไม่ใช่ AI logic specification
@@ -789,8 +818,8 @@ File: `.ai/tools.yaml` (in TRINITY kernel root)
 version: 1
 tools:
   - name: browser-cli
-    path: <workspace-root>/browser-cli
-    bin: node <workspace-root>/browser-cli/index.js
+    path: /<home>/<user>/Downloads/yai_project/browser-cli
+    bin: node /<home>/<user>/Downloads/yai_project/browser-cli/index.js
     schema_version: "2"
     capabilities: [browser, navigation, dom, screenshot, assertion]
     policy_default: normal
@@ -798,8 +827,8 @@ tools:
     contract_version: "1.0"
   
   - name: memory-cli
-    path: <workspace-root>/memory-cli
-    bin: node <workspace-root>/memory-cli/index.js
+    path: /<home>/<user>/Downloads/yai_project/memory-cli
+    bin: node /<home>/<user>/Downloads/yai_project/memory-cli/index.js
     schema_version: "1"
     capabilities: [search, index, recall, learn]
     policy_default: normal
