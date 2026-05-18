@@ -8,7 +8,7 @@ Trinity แยก version line ของ architecture, runtime และ tool co
 ```text
 Trinity Protocol v2  = architecture / constitution generation
 Runtime v0.1.0       = first public executable runtime line
-Tool Contract        = v1.0 freeze candidate, v1.1 draft working spec
+Tool Contract ABI    = v1.0.0 stable; validation tooling v1.0.1
 ```
 
 ## v0.1.0
