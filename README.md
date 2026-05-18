@@ -116,7 +116,7 @@ Trinity separates the kernel, public ABI, and tools that implement the ABI.
 |---|---|---|---|---|
 | Trinity Protocol | Kernel / governance runtime | v0.1.0 stable | consumes Tool Contract | this repo |
 | Trinity Tool Contract | Stable ABI for CLI tools | v1.0.0 stable, v1.0.1 validator | v1.0 | [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract) |
-| browser-cli | Browser automation organ | v0.2.1 live viewport command | target v1.0 | [`postmunnet/browser-cli`](https://github.com/postmunnet/browser-cli) |
+| browser-cli | Browser automation organ | v0.2.2 clean text output + log redaction | target v1.0 | [`postmunnet/browser-cli`](https://github.com/postmunnet/browser-cli) |
 | memory-cli | Artifact memory organ | planned | target v1.0 | planned |
 | verify-cli | Verification organ | planned | target v1.0 | planned |
 | retro-cli | Retrospective / memory handoff organ | planned | target v1.0 | planned |
