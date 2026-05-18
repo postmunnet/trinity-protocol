@@ -40,7 +40,7 @@ Clean export without optional sibling tools: 1860 passed, 8 skipped
 
 ## Lineage
 
-- Source family: `TRINITY_ULTIMAT` kernel lessons and migration evidence.
+- Source family: `TRINITY_LEGACY` kernel lessons and migration evidence.
 - Current repo: `trinity_v2`, clean public bootstrap/runtime target.
 - Public export: generated with `scripts/export_github.sh` and
   `scripts/package_github_zip.sh`.

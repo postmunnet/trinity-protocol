@@ -244,7 +244,7 @@ target: <upstream-project> (production project)
 
 ---
 
-### 2.7 browser-cli (external `~/yai_project/browser-cli/`)
+### 2.7 browser-cli (external `<workspace-root>/browser-cli/`)
 
 #### Current State
 
