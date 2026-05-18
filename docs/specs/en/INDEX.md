@@ -206,7 +206,7 @@ yai_project/
 |-------------|-----------|
 | Master vision | `00_BLUEPRINT.md` (Thai) or [`00_BLUEPRINT.md`](00_BLUEPRINT.md) (English) |
 | New project scaffold | `00b_BOOTSTRAP_PACK.md` |
-| Write a CLI tool | `01_TOOL_CONTRACT.md` (English available) |
+| Write a CLI tool | `01_TOOL_CONTRACT.md` redirect → [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract) |
 | How verifier works | `02_VERIFIER_SPEC.md` |
 | How loop works | `03_GOAL_LOOP_SPEC.md` |
 | Workflow graph | `04_GRAPH_SPEC.md` |
@@ -527,7 +527,7 @@ kernel    → mechanical
 | 0 | INDEX.md (this) | Master overview | ~950 | ✅ |
 | 1 | 00_BLUEPRINT.md | Master spec | 705 | ✅ |
 | 2 | 00b_BOOTSTRAP_PACK.md | Phase 0.5 | 1,071 | ⏳ TBD |
-| 3 | 01_TOOL_CONTRACT.md | Tool ABI | 1,298 | ✅ |
+| 3 | 01_TOOL_CONTRACT.md | Redirect to canonical Tool Contract repo | redirect | ✅ |
 | 4 | 02_VERIFIER_SPEC.md | Judge | 710 | ⏳ TBD |
 | 5 | 03_GOAL_LOOP_SPEC.md | Loop | 644 | ⏳ TBD |
 | 6 | 04_GRAPH_SPEC.md | Graph | 710 | ⏳ TBD |

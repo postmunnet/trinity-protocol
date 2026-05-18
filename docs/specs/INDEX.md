@@ -313,7 +313,7 @@ Bootstrap Pack             ← Template for new projects
 |-------------|-----------|
 | **Master vision** | `00_BLUEPRINT.md` |
 | **How to scaffold new project** | `00b_BOOTSTRAP_PACK.md` |
-| **How to write a CLI tool** | `01_TOOL_CONTRACT.md` |
+| **How to write a CLI tool** | `01_TOOL_CONTRACT.md` redirect → [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract) |
 | **How verifier works** | `02_VERIFIER_SPEC.md` |
 | **How loop works** | `03_GOAL_LOOP_SPEC.md` |
 | **How workflow graph works** | `04_GRAPH_SPEC.md` |
@@ -836,7 +836,7 @@ Phase 10   Extension Platform        🌐 Future
 | 0 | [`INDEX.md`](INDEX.md) | This document — master overview | ~700 | 15 min |
 | 1 | [`00_BLUEPRINT.md`](00_BLUEPRINT.md) | Master spec v2 | 693 | 30 min |
 | 2 | [`00b_BOOTSTRAP_PACK.md`](00b_BOOTSTRAP_PACK.md) | Phase 0.5 portability | 1,071 | 25 min |
-| 3 | [`01_TOOL_CONTRACT.md`](01_TOOL_CONTRACT.md) | Universal CLI contract | 1,298 | 30 min |
+| 3 | [`01_TOOL_CONTRACT.md`](01_TOOL_CONTRACT.md) | Redirect to canonical Tool Contract repo | redirect | 1 min |
 | 4 | [`02_VERIFIER_SPEC.md`](02_VERIFIER_SPEC.md) | Judge with rules | 710 | 20 min |
 | 5 | [`03_GOAL_LOOP_SPEC.md`](03_GOAL_LOOP_SPEC.md) | Goal tree + loop | 644 | 20 min |
 | 6 | [`04_GRAPH_SPEC.md`](04_GRAPH_SPEC.md) | Workflow + authority | 710 | 20 min |
