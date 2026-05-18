@@ -58,7 +58,7 @@ def test_touch_memory_db_creates_sqlite_file(tmp_path: Path) -> None:
 def test_default_homes_live_inside_trinity_checkout(tmp_path: Path, monkeypatch) -> None:
     fake_file = (
         tmp_path
-        / "yai_project"
+        / "workspace-root"
         / "trinity_v2"
         / ".ai"
         / "cli"
@@ -67,7 +67,7 @@ def test_default_homes_live_inside_trinity_checkout(tmp_path: Path, monkeypatch)
     )
     monkeypatch.setattr(registry_mod, "__file__", str(fake_file))
 
-    trinity_root = tmp_path / "yai_project" / "trinity_v2"
+    trinity_root = tmp_path / "workspace-root" / "trinity_v2"
     assert default_trinity_home(env={}) == trinity_root / ".trinity"
     assert default_memory_home(env={}) == trinity_root / ".memory"
 

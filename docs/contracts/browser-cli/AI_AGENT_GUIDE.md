@@ -254,7 +254,7 @@ AI actions are logged — be aware:
 ### Don't log sensitive commands explicitly
 ```bash
 # ❌ Don't print credentials to logs
-bcmd "fill #password 'actual-password'"   # logged to actions.ndjson
+bcmd "fill #password 'replace-me'"   # logged to actions.ndjson
 
 # ✅ Use config-based auth
 # Config file has creds → AI uses --login backend

@@ -18,7 +18,7 @@ read-time: 15 minutes
 
 1. [Welcome](#1-welcome) — What this is, For whom
 2. [The Big Picture](#2-the-big-picture) — One diagram, two paragraphs
-3. [Project Family](#3-project-family) — All `yai_project/` folders
+3. [Project Family](#3-project-family) — All `workspace-root/` folders
 4. [Vocabulary (Glossary)](#4-vocabulary-glossary) — ทุกคำมีความหมาย
 5. [Component Index](#5-component-index) — Where to find what
 6. [Roles & Responsibilities](#6-roles--responsibilities) — Who does what
@@ -121,11 +121,11 @@ Going to migrate <upstream-project>?   → INDEX → 10 → 09
 
 ## 3. Project Family
 
-`/<home>/<user>/Downloads/yai_project/` มีโฟลเดอร์เกี่ยวข้องดังนี้:
+`<workspace-root>/` มีโฟลเดอร์เกี่ยวข้องดังนี้:
 
 ```text
-yai_project/
-├── TRINITY_ULTIMAT/          ← Trinity kernel (development)
+workspace-root/
+├── TRINITY_LEGACY/          ← Trinity kernel (development)
 │   ├── .ai/                  ← Trinity runtime: cli, sessions, audit, policies, schemas
 │   ├── archive/              ← Legacy AI docs, old sessions
 │   ├── references/           ← External AI harness references (claw-code, openclaude, etc.)
@@ -171,7 +171,7 @@ yai_project/
 ### Cross-relationships
 
 ```text
-TRINITY_ULTIMAT/           ← Source of truth for kernel + specs
+TRINITY_LEGACY/           ← Source of truth for kernel + specs
         ↓ used by
 <upstream-project>/                    ← Real production project
         ↓ informs
@@ -332,12 +332,12 @@ Bootstrap Pack             ← Template for new projects
 |-----------|----------|--------|
 | Trinity kernel | `<upstream-project>/.ai/cli/` (existing) | ✅ Production |
 | Trinity kernel (canonical) | (future: `~/code/trinity-kernel/`) | 📋 |
-| browser-cli | `~/yai_project/browser-cli/` | ✅ Production |
-| memory-cli | (future: `~/yai_project/memory-cli/`) | 📋 Phase 2 |
-| verify-cli | (future: `~/yai_project/verify-cli/`) | 📋 Phase 4 |
-| retro-cli | (future: `~/yai_project/retro-cli/`) | 📋 Phase 7 |
-| trinity-shell | (future: `~/yai_project/trinity-shell/`) | 📋 Phase 8 |
-| Bootstrap Pack | (future: `~/yai_project/trinity-bootstrap-pack/`) | 📋 Phase 0.5 |
+| browser-cli | `<workspace-root>/browser-cli/` | ✅ Production |
+| memory-cli | (future: `<workspace-root>/memory-cli/`) | 📋 Phase 2 |
+| verify-cli | (future: `<workspace-root>/verify-cli/`) | 📋 Phase 4 |
+| retro-cli | (future: `<workspace-root>/retro-cli/`) | 📋 Phase 7 |
+| trinity-shell | (future: `<workspace-root>/trinity-shell/`) | 📋 Phase 8 |
+| Bootstrap Pack | (future: `<workspace-root>/trinity-bootstrap-pack/`) | 📋 Phase 0.5 |
 
 ### 5.3 Per-project Trinity instance
 

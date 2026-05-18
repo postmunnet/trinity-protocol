@@ -40,7 +40,7 @@ Clean export without optional sibling tools: 1860 passed, 8 skipped
 
 ## Lineage
 
-- Source family: บทเรียนจาก `TRINITY_ULTIMAT` kernel และ migration evidence
+- Source family: บทเรียนจาก `TRINITY_LEGACY` kernel และ migration evidence
 - Current repo: `trinity_v2`, clean public bootstrap/runtime target
 - Public export: สร้างด้วย `scripts/export_github.sh` และ
   `scripts/package_github_zip.sh`

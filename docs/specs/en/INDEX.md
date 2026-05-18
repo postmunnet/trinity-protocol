@@ -110,11 +110,11 @@ note: "Translation of ../INDEX.md — refer to Thai version for latest details"
 
 ## 3. Project Family
 
-`/<home>/<user>/Downloads/yai_project/` contains:
+`<workspace-root>/` contains:
 
 ```
-yai_project/
-├── TRINITY_ULTIMAT/          ← Trinity kernel (development)
+workspace-root/
+├── TRINITY_LEGACY/          ← Trinity kernel (development)
 │   ├── .ai/                  ← Trinity runtime: cli, sessions, audit, policies
 │   ├── archive/              ← Legacy AI docs
 │   ├── references/           ← External AI harness study

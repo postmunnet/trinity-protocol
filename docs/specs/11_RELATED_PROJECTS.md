@@ -22,7 +22,7 @@ last-updated: 2026-04-28
 
 ---
 
-## 1. Project Family (Internal — yai_project/)
+## 1. Project Family (Internal — workspace-root/)
 
 ### 1.1 TRINITY_LEGACY (this project)
 

@@ -36,7 +36,7 @@ note: "Translation of ../12_GLOSSARY.md — English-only entries"
 ### ai-docs
 🏷 *Project Family*
 **Definition:** Methodology framework — markdown documentation for AI workflow rituals
-**Locations:** `/yai_project/ai-docs/` (original) and `<project>/ai-docs/` (per-project)
+**Locations:** `/<workspace-root>/ai-docs/` (original) and `<project>/ai-docs/` (per-project)
 **Role:** Knowledge Brain (memory substrate)
 
 ### Anthropic insight (1.6%/98.4%)
