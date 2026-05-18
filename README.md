@@ -85,7 +85,7 @@ If the agent cannot produce the artifact, the work cannot be promoted.
 
 - Architecture generation: Trinity v2
 - Runtime release: v0.1.0
-- Tool Contract ABI: v1.0.0 stable; validation tooling v1.0.1
+- Tool Contract ABI: v1.0.0 stable; validation/examples tooling v1.0.2
 - Kernel CLI: verified v0.1.0 runtime included in this repository
 - Release evidence: [`docs/releases/TRINITY_V0_1_0_RELEASE_EVIDENCE.md`](docs/releases/TRINITY_V0_1_0_RELEASE_EVIDENCE.md)
 
@@ -115,8 +115,8 @@ Trinity separates the kernel, public ABI, and tools that implement the ABI.
 | Tool | Role | Status | Contract | Repo |
 |---|---|---|---|---|
 | Trinity Protocol | Kernel / governance runtime | v0.1.0 stable | consumes Tool Contract | this repo |
-| Trinity Tool Contract | Stable ABI for CLI tools | v1.0.0 stable, v1.0.1 validator | v1.0 | [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract) |
-| browser-cli | Browser automation organ | v0.2.2 clean text output + log redaction | target v1.0 | [`postmunnet/browser-cli`](https://github.com/postmunnet/browser-cli) |
+| Trinity Tool Contract | Stable ABI for CLI tools | v1.0.0 stable, v1.0.2 examples | v1.0 | [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract) |
+| browser-cli | Browser automation organ | v0.3.0 partial v1 envelope implementation | partial v1.0 | [`postmunnet/browser-cli`](https://github.com/postmunnet/browser-cli) |
 | memory-cli | Artifact memory organ | planned | target v1.0 | planned |
 | verify-cli | Verification organ | planned | target v1.0 | planned |
 | retro-cli | Retrospective / memory handoff organ | planned | target v1.0 | planned |
@@ -125,7 +125,7 @@ Canonical Tool Contract:
 
 - [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract)
 - pinned ABI: [`v1.0.0`](https://github.com/postmunnet/trinity-tool-contract/tree/v1.0.0)
-- validation tooling: [`v1.0.1`](https://github.com/postmunnet/trinity-tool-contract/releases/tag/v1.0.1)
+- validation/examples tooling: [`v1.0.2`](https://github.com/postmunnet/trinity-tool-contract/releases/tag/v1.0.2)
 
 ---
 
@@ -263,7 +263,7 @@ Version story:
 ```text
 Trinity Protocol v2  = architecture / constitution generation
 Runtime v0.1.0       = first public executable runtime line
-Tool Contract ABI    = v1.0.0 stable; validation tooling v1.0.1
+Tool Contract ABI    = v1.0.0 stable; validation/examples tooling v1.0.2
 ```
 
 See [`docs/VERSION_LINEAGE.md`](docs/VERSION_LINEAGE.md).
