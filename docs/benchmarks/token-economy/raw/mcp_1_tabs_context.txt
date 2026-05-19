@@ -1,0 +1,14 @@
+--- INPUT ---
+{"createIfEmpty": true}
+
+--- OUTPUT (block 1, JSON) ---
+{"availableTabs":[{"tabId":1679488603,"title":"New Tab","url":"chrome://newtab"}],"tabGroupId":2090782821}
+
+--- OUTPUT (block 2, formatted) ---
+
+Tab Context:
+- Available tabs:
+  • tabId 1679488603: "New Tab" (chrome://newtab)
+
+--- SYSTEM REMINDER (chrome-MCP induced) ---
+You used a single tool call this turn. Prefer browser_batch to execute multiple actions in one call — it is significantly faster. Batch your next sequence of clicks, types, navigations, and screenshots together.

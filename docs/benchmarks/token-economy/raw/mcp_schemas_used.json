@@ -1,0 +1,48 @@
+[
+  {
+    "name": "mcp__claude-in-chrome__tabs_context_mcp",
+    "description": "Get context information about the current MCP tab group. Returns all tab IDs inside the group if it exists. CRITICAL: You must get the context at least once before using other browser automation tools so you know what tabs exist. Each new conversation should create its own new tab (using tabs_create_mcp) rather than reusing existing tabs, unless the user explicitly asks to use an existing tab.",
+    "parameters": {
+      "properties": {
+        "createIfEmpty": {
+          "description": "Creates a new MCP tab group if none exists, creates a new Window with a new tab group containing an empty tab (which can be used for this conversation). If a MCP tab group already exists, this parameter has no effect.",
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "type": "object"
+    }
+  },
+  {
+    "name": "mcp__claude-in-chrome__navigate",
+    "description": "Navigate to a URL, or go forward/back in browser history. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.",
+    "parameters": {
+      "properties": {
+        "tabId": {
+          "description": "Tab ID to navigate. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+          "type": "number"
+        },
+        "url": {
+          "description": "The URL to navigate to. Can be provided with or without protocol (defaults to https://). Use \"forward\" to go forward in history or \"back\" to go back in history.",
+          "type": "string"
+        }
+      },
+      "required": ["url", "tabId"],
+      "type": "object"
+    }
+  },
+  {
+    "name": "mcp__claude-in-chrome__get_page_text",
+    "description": "Extract raw text content from the page, prioritizing article content. Ideal for reading articles, blog posts, or other text-heavy pages. Returns plain text without HTML formatting. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.",
+    "parameters": {
+      "properties": {
+        "tabId": {
+          "description": "Tab ID to extract text from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+          "type": "number"
+        }
+      },
+      "required": ["tabId"],
+      "type": "object"
+    }
+  }
+]
