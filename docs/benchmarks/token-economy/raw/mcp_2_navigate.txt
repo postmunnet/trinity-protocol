@@ -1,0 +1,15 @@
+--- INPUT ---
+{"tabId": 1679488603, "url": "https://github.com/postmunnet/trinity-protocol"}
+
+--- OUTPUT (block 1) ---
+Navigated to https://github.com/postmunnet/trinity-protocol
+
+--- OUTPUT (block 2, formatted) ---
+
+Tab Context:
+- Executed on tabId: 1679488603
+- Available tabs:
+  • tabId 1679488603: "New tabExtend" (chrome://newtab/)
+
+--- SYSTEM REMINDER ---
+You used a single tool call this turn. Prefer browser_batch to execute multiple actions in one call — it is significantly faster. Batch your next sequence of clicks, types, navigations, and screenshots together.
