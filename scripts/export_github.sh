@@ -66,7 +66,7 @@ while IFS= read -r file; do
       s/\Q$from\E/$to/g;
     }
     s#/Users/[^/"'"'"'`[:space:]]+#<user-home>#g;
-    s#/<home>/<user>/Downloads/[^/"'"'"'`[:space:]]+#<workspace-root>#g;
+    s#/<home>/<user>/Downloads/yai_project#<workspace-root>#g;
     s#/<home>/<user>#<user-home>#g;
     s/\bvape[0-9]+/example_project/g;
     s/\bVape[0-9]+/Example Project/g;

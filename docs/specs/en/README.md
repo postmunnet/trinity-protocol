@@ -238,7 +238,7 @@ All tools follow the same Tool Contract: stdin/stdout JSON, schema-locked, NDJSO
 ## Project Structure
 
 ```
-workspace-root/
+yai_project/
 ├── TRINITY_LEGACY/              ← Trinity kernel + specs
 │   ├── .ai/                      ← Production runtime
 │   └── TRINITY_EVOLUTION/        ← v2 specs (16 docs, 13K lines)

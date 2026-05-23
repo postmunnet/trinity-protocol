@@ -1,0 +1,11 @@
+---
+title: "{{PROJECT_NAME}} — Codex CLI entrypoint"
+trinity-version: 2.0
+trinity-pack: trinity-bootstrap-pack-v1
+---
+
+# {{PROJECT_NAME}} (Codex / AGENTS.md)
+
+Mirrors `CLAUDE.md` — same short codes, same boundaries.
+
+See [`CLAUDE.md`](CLAUDE.md) for the canonical entrypoint.

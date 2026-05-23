@@ -85,7 +85,7 @@ If the agent cannot produce the artifact, the work cannot be promoted.
 
 - Architecture generation: Trinity v2
 - Runtime release: v0.1.0
-- Tool Contract ABI: v1.0.0 stable; validation/examples tooling v1.0.2
+- Public Tool Contract: v1.0 freeze candidate; working spec is `v1.1.0-draft`
 - Kernel CLI: verified v0.1.0 runtime included in this repository
 - Release evidence: [`docs/releases/TRINITY_V0_1_0_RELEASE_EVIDENCE.md`](docs/releases/TRINITY_V0_1_0_RELEASE_EVIDENCE.md)
 
@@ -105,27 +105,6 @@ Latest verified test evidence:
 Source checkout: 1862 passed, 6 skipped
 Clean export without optional sibling tools: 1860 passed, 8 skipped
 ```
-
----
-
-## Tool Ecosystem
-
-Trinity separates the kernel, public ABI, and tools that implement the ABI.
-
-| Tool | Role | Status | Contract | Repo |
-|---|---|---|---|---|
-| Trinity Protocol | Kernel / governance runtime | v0.1.0 stable | consumes Tool Contract | this repo |
-| Trinity Tool Contract | Stable ABI for CLI tools | v1.0.0 stable, v1.0.2 examples | v1.0 | [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract) |
-| browser-cli | Browser automation organ | v0.3.0 partial v1 envelope implementation | partial v1.0 | [`postmunnet/browser-cli`](https://github.com/postmunnet/browser-cli) |
-| memory-cli | Artifact memory organ | planned | target v1.0 | planned |
-| verify-cli | Verification organ | planned | target v1.0 | planned |
-| retro-cli | Retrospective / memory handoff organ | planned | target v1.0 | planned |
-
-Canonical Tool Contract:
-
-- [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract)
-- pinned ABI: [`v1.0.0`](https://github.com/postmunnet/trinity-tool-contract/tree/v1.0.0)
-- validation/examples tooling: [`v1.0.2`](https://github.com/postmunnet/trinity-tool-contract/releases/tag/v1.0.2)
 
 ---
 
@@ -227,7 +206,7 @@ Specs:
 
 - [`docs/specs/INDEX.md`](docs/specs/INDEX.md)
 - [`docs/specs/00_BLUEPRINT.md`](docs/specs/00_BLUEPRINT.md)
-- [`docs/specs/01_TOOL_CONTRACT.md`](docs/specs/01_TOOL_CONTRACT.md) redirects to [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract)
+- [`docs/specs/01_TOOL_CONTRACT.md`](docs/specs/01_TOOL_CONTRACT.md)
 
 ---
 
@@ -263,7 +242,7 @@ Version story:
 ```text
 Trinity Protocol v2  = architecture / constitution generation
 Runtime v0.1.0       = first public executable runtime line
-Tool Contract ABI    = v1.0.0 stable; validation/examples tooling v1.0.2
+Tool Contract        = v1.0 freeze candidate, v1.1 draft working spec
 ```
 
 See [`docs/VERSION_LINEAGE.md`](docs/VERSION_LINEAGE.md).
@@ -300,4 +279,3 @@ Trinity คือ control layer แบบ CLI-first สำหรับงาน�
 - [`docs/ORIGIN_TH.md`](docs/ORIGIN_TH.md) — ที่มาของ Trinity
 - [`docs/RITUALS_TH.md`](docs/RITUALS_TH.md) — ritual reference
 - [`docs/operator-guide-th/00_README.md`](docs/operator-guide-th/00_README.md) — คู่มือใช้งาน
-- [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract) — Tool Contract ABI v1.0

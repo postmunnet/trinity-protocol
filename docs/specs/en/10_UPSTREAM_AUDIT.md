@@ -246,7 +246,7 @@ note: "Translation of ../10_UPSTREAM_AUDIT.md"
 
 ---
 
-### 2.7 browser-cli (external `<workspace-root>/browser-cli/`)
+### 2.7 browser-cli (external `~/yai_project/browser-cli/`)
 
 #### Current State
 

@@ -1,0 +1,8 @@
+version: "1.0"
+# Deterministic verifier rules — extend per project.
+rules:
+  - id: kernel_pytest_green
+    description: kernel pytest suite must exit 0
+    command: "cd .ai && python3 -m pytest cli/tests -q"
+    expect_exit: 0
+    severity: blocker
