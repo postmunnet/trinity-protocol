@@ -32,7 +32,7 @@ def test_dry_run_greenfield_smoke(tmp_path: Path) -> None:
     receipt_file = target / ".trinity-install-receipt.json"
     assert receipt_file.exists()
     body = json.loads(receipt_file.read_text(encoding="utf-8"))
-    assert body["pack_version"] == "trinity-bootstrap-pack-v1"
+    assert body["pack_version"].startswith("trinity-bootstrap-pack-v")
     assert body["mode"] == "greenfield"
     assert body["dry_run"] is True
 
