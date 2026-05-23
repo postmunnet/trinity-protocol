@@ -18,7 +18,7 @@ read-time: 15 minutes
 
 1. [Welcome](#1-welcome) — What this is, For whom
 2. [The Big Picture](#2-the-big-picture) — One diagram, two paragraphs
-3. [Project Family](#3-project-family) — All `workspace-root/` folders
+3. [Project Family](#3-project-family) — All `yai_project/` folders
 4. [Vocabulary (Glossary)](#4-vocabulary-glossary) — ทุกคำมีความหมาย
 5. [Component Index](#5-component-index) — Where to find what
 6. [Roles & Responsibilities](#6-roles--responsibilities) — Who does what
@@ -124,7 +124,7 @@ Going to migrate <upstream-project>?   → INDEX → 10 → 09
 `<workspace-root>/` มีโฟลเดอร์เกี่ยวข้องดังนี้:
 
 ```text
-workspace-root/
+yai_project/
 ├── TRINITY_LEGACY/          ← Trinity kernel (development)
 │   ├── .ai/                  ← Trinity runtime: cli, sessions, audit, policies, schemas
 │   ├── archive/              ← Legacy AI docs, old sessions
@@ -313,7 +313,7 @@ Bootstrap Pack             ← Template for new projects
 |-------------|-----------|
 | **Master vision** | `00_BLUEPRINT.md` |
 | **How to scaffold new project** | `00b_BOOTSTRAP_PACK.md` |
-| **How to write a CLI tool** | `01_TOOL_CONTRACT.md` redirect → [`postmunnet/trinity-tool-contract`](https://github.com/postmunnet/trinity-tool-contract) |
+| **How to write a CLI tool** | `01_TOOL_CONTRACT.md` |
 | **How verifier works** | `02_VERIFIER_SPEC.md` |
 | **How loop works** | `03_GOAL_LOOP_SPEC.md` |
 | **How workflow graph works** | `04_GRAPH_SPEC.md` |
@@ -332,12 +332,12 @@ Bootstrap Pack             ← Template for new projects
 |-----------|----------|--------|
 | Trinity kernel | `<upstream-project>/.ai/cli/` (existing) | ✅ Production |
 | Trinity kernel (canonical) | (future: `~/code/trinity-kernel/`) | 📋 |
-| browser-cli | `<workspace-root>/browser-cli/` | ✅ Production |
-| memory-cli | (future: `<workspace-root>/memory-cli/`) | 📋 Phase 2 |
-| verify-cli | (future: `<workspace-root>/verify-cli/`) | 📋 Phase 4 |
-| retro-cli | (future: `<workspace-root>/retro-cli/`) | 📋 Phase 7 |
-| trinity-shell | (future: `<workspace-root>/trinity-shell/`) | 📋 Phase 8 |
-| Bootstrap Pack | (future: `<workspace-root>/trinity-bootstrap-pack/`) | 📋 Phase 0.5 |
+| browser-cli | `~/yai_project/browser-cli/` | ✅ Production |
+| memory-cli | (future: `~/yai_project/memory-cli/`) | 📋 Phase 2 |
+| verify-cli | (future: `~/yai_project/verify-cli/`) | 📋 Phase 4 |
+| retro-cli | (future: `~/yai_project/retro-cli/`) | 📋 Phase 7 |
+| trinity-shell | (future: `~/yai_project/trinity-shell/`) | 📋 Phase 8 |
+| Bootstrap Pack | (future: `~/yai_project/trinity-bootstrap-pack/`) | 📋 Phase 0.5 |
 
 ### 5.3 Per-project Trinity instance
 
@@ -836,7 +836,7 @@ Phase 10   Extension Platform        🌐 Future
 | 0 | [`INDEX.md`](INDEX.md) | This document — master overview | ~700 | 15 min |
 | 1 | [`00_BLUEPRINT.md`](00_BLUEPRINT.md) | Master spec v2 | 693 | 30 min |
 | 2 | [`00b_BOOTSTRAP_PACK.md`](00b_BOOTSTRAP_PACK.md) | Phase 0.5 portability | 1,071 | 25 min |
-| 3 | [`01_TOOL_CONTRACT.md`](01_TOOL_CONTRACT.md) | Redirect to canonical Tool Contract repo | redirect | 1 min |
+| 3 | [`01_TOOL_CONTRACT.md`](01_TOOL_CONTRACT.md) | Universal CLI contract | 1,298 | 30 min |
 | 4 | [`02_VERIFIER_SPEC.md`](02_VERIFIER_SPEC.md) | Judge with rules | 710 | 20 min |
 | 5 | [`03_GOAL_LOOP_SPEC.md`](03_GOAL_LOOP_SPEC.md) | Goal tree + loop | 644 | 20 min |
 | 6 | [`04_GRAPH_SPEC.md`](04_GRAPH_SPEC.md) | Workflow + authority | 710 | 20 min |

@@ -1,0 +1,60 @@
+---
+title: "{{PROJECT_NAME}} — Trinity-enabled"
+trinity-version: 2.0
+trinity-pack: trinity-bootstrap-pack-v1
+---
+
+# {{PROJECT_NAME}}
+
+> Trinity-enabled project. AI agents start by reading this file + running `lll`.
+
+---
+
+## READ FIRST (Mandatory < 1 min)
+
+1. **vvv before nnn** — verify intent before planning (100% enforced).
+2. **Read actual code** — evidence-based, never assume.
+3. **No production write without human approval** — always ask.
+
+Full rules: [`ai-docs/CORE_RULES.md`](ai-docs/CORE_RULES.md)
+
+---
+
+## Short Codes (Inline — AI must know on first read)
+
+| Code | Action | When |
+|------|--------|------|
+| `lll` | Status (git + session + memory) | Start of session |
+| `sss <task>` | Open new session | New task |
+| `nnn` | Plan with estimates (file-by-file) | After sss |
+| `vvv` | Verify (5 evidence questions) | After nnn |
+| `gogogo` | Execute plan | After vvv approved |
+| `ddd` | Done / human deploy gate | After gogogo + verify |
+| `rrr` | Retrospective + memory update | End of session |
+
+**Order (do not skip):** `sss → nnn → vvv → gogogo → ddd → rrr`
+
+---
+
+## Trinity Boundaries
+
+- AI **proposes** plans, code, decompositions.
+- Verifier (`.ai/policies/verifier-rules.yaml`) **decides** PASS / RETRY / NEEDS_HUMAN / DEAD.
+- Policy (`.ai/policies/safety.yaml`) **decides** allow / deny.
+- Human **decides** `decided_by: human` transitions (deploy, destructive ops, external publication).
+- Every action logs to `.ai/audit/events.ndjson` (hash chain — append only).
+
+Forbidden writes: `.ai/policies/**`, `.ai/audit/**` (mutate), `.ai/schemas/**`.
+
+---
+
+## Quick Run
+
+```bash
+bash .ai/cli/ai lll          # status
+bash .ai/cli/ai sss "<task>" # open session
+```
+
+---
+
+When unsure → ask the human (NEEDS_HUMAN). Never proceed under uncertainty.

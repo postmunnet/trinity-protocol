@@ -55,7 +55,10 @@ def callback(
         None, "--answer", help="N=text (repeatable, e.g. --answer 1=...)"
     ),
     answers_file: Optional[Path] = typer.Option(
-        None, "--answers-file", help='JSON {"1":"...","2":"..."}'
+        None,
+        "--answers-file",
+        help='JSON or YAML file with answers (e.g. {"1":"...","2":"..."} '
+        'or `1: "..."` per line). Format auto-detected.',
     ),
     show: bool = typer.Option(
         False, "--show", help="Print 5 questions and exit (no writes)"
@@ -146,7 +149,8 @@ def _run_inner(
         _print_questions()
         console.print(
             f"[yellow]Missing answers for Q{missing}. Provide via "
-            f"--answer N=text (repeatable) or --answers-file path.[/yellow]"
+            f"--answer N=text (repeatable) or --answers-file <path> "
+            f'(JSON `{{"1":"..."}}` or YAML `1: "..."`).[/yellow]'
         )
         # Emit pack-declared vvv.failed before exiting (Article IX —
         # evidence trail for failed proposals).
@@ -329,8 +333,7 @@ def _parse_answers(
 ) -> Dict[int, str]:
     answers: Dict[int, str] = {}
     if answers_file:
-        with answers_file.open() as f:
-            data = json.load(f)
+        data = _load_answers_file(answers_file)
         for k, v in data.items():
             answers[int(k)] = str(v)
     for flag in answer_flags:
@@ -342,6 +345,38 @@ def _parse_answers(
         k, v = flag.split("=", 1)
         answers[int(k)] = v
     return answers
+
+
+def _load_answers_file(path: Path) -> Dict:
+    """Load Q-answers map from a JSON or YAML file.
+
+    Tries JSON first (cheapest, backwards-compatible with prior callers);
+    falls back to yaml.safe_load on JSONDecodeError. Emits a clear error
+    that mentions both formats if neither parses.
+    """
+    raw = path.read_text(encoding="utf-8")
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as json_err:
+        try:
+            import yaml  # PyYAML is a kernel runtime dep (see .ai/requirements.txt)
+
+            loaded = yaml.safe_load(raw)
+        except Exception as yaml_err:
+            console.print(
+                f"[red]--answers-file {path}: neither valid JSON nor YAML.[/red]\n"
+                f"  JSON error: {json_err}\n"
+                f"  YAML error: {yaml_err}\n"
+                f'  Expected: JSON `{{"1":"...","2":"..."}}` or YAML `1: "..."`.'
+            )
+            raise typer.Exit(2)
+        if not isinstance(loaded, dict):
+            console.print(
+                f"[red]--answers-file {path}: YAML root must be a mapping "
+                f'(got {type(loaded).__name__}). Expected `1: "..."`.[/red]'
+            )
+            raise typer.Exit(2)
+        return loaded
 
 
 def _query_past_incidents(

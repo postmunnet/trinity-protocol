@@ -1,0 +1,12 @@
+version: "1.0"
+# Safety policy — operator MUST review and tune for the project.
+# Default: deny destructive / network / external publication actions until reviewed.
+deny_by_default: true
+forbidden_writes:
+  - .ai/policies/**
+  - .ai/audit/**
+  - .ai/schemas/**
+require_human:
+  - production_deploy
+  - destructive_filesystem_ops
+  - external_publication

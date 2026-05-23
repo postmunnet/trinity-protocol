@@ -261,7 +261,7 @@ trinity_v2/docs/schemas/browser-cli/
 ### Sub-tasks
 
 18. Create `docs/contracts/browser-cli/README.md` with notice:
-    > ⚠️ **REFERENCE ONLY** — เอกสารในโฟลเดอร์นี้คือ DNA reference จาก `<workspace-root>/browser-cli/` ไม่ใช่ active code ของ trinity_v2. ใช้เป็นต้นแบบสำหรับ tool ใหม่ (memory-cli, verify-cli) ตาม `01_TOOL_CONTRACT.md`
+    > ⚠️ **REFERENCE ONLY** — เอกสารในโฟลเดอร์นี้คือ DNA reference จาก `~/yai_project/browser-cli/` ไม่ใช่ active code ของ trinity_v2. ใช้เป็นต้นแบบสำหรับ tool ใหม่ (memory-cli, verify-cli) ตาม `01_TOOL_CONTRACT.md`
 19. Copy 5 markdown docs
 20. Copy 2 JSON schemas
 

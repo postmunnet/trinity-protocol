@@ -1,0 +1,23 @@
+# trinity_v2 — pytest configuration only.
+#
+# This file is intentionally minimal: it ONLY declares [tool.pytest.ini_options]
+# so `python3 -m pytest <relpath>` works from any cwd. It is NOT a packaging
+# manifest (no [project] / [build-system]) — Trinity is CLI-native, not a
+# published package.
+#
+# Why this exists: without a rootdir anchor, pytest defaults to cwd, and
+# `cd .ai && pytest cli/tests` (kernel pattern) leaves the shell in `.ai/`
+# making subsequent `pytest tools/...` (project-root pattern) fail with
+# "file or directory not found". See [[feedback_bash_cwd_persists_kernel_vs_agent]].
+
+[tool.pytest.ini_options]
+# Anchor pytest at this file's directory regardless of caller cwd.
+# pytest auto-detects rootdir from the location of pyproject.toml; explicit
+# testpaths makes discovery cwd-agnostic.
+minversion = "7.0"
+testpaths = [
+    ".ai/cli/tests",
+    "tools/trinity-bootstrap-pack/tests",
+]
+# Cosmetic: quiet output, short tracebacks for faster scanning.
+addopts = "-q --tb=short"

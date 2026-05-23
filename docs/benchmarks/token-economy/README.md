@@ -80,16 +80,18 @@ latency, still loses on markdown structure. The composition of these
 trade-offs continues to support the routing matrix in
 [`USE_CASE_ROUTING.md`](../../contracts/browser-cli/USE_CASE_ROUTING.md).
 
-**Honest disclosure:** the v2 result depends on an *uncommitted* change
-in the `browser-cli` sibling repo (`lib/commands/read.js`) at the time
-of writing. The benchmark will be re-verified once the change is
-committed and tagged. v1 numbers above remain the only fully-citable
-baseline until then.
+**Reproducibility status:** the Phase 1 normalizer is shipped in
+[`postmunnet/browser-cli` v0.3.0](https://github.com/postmunnet/browser-cli/releases/tag/v0.3.0)
+(current `main`). The load-bearing change is the `normalizeText()` +
+`shouldCleanText()` pair in [`lib/commands/read.js`](https://github.com/postmunnet/browser-cli/blob/main/lib/commands/read.js).
+Anyone cloning `postmunnet/browser-cli` at `v0.3.0` or later reproduces
+the v2 numbers against the same-day README snapshot under `raw/`.
 
 **Reproduction (v2):**
 
-```
-cd /path/to/browser-cli   # v0.3.0+ with normalizer patch
+```bash
+git clone --depth 1 --branch v0.3.0 https://github.com/postmunnet/browser-cli.git
+cd browser-cli && npm ci && npx playwright install chromium
 printf 'goto https://github.com/postmunnet/trinity-protocol\ntext article\nexit\n' \
   | node index.js
 ```

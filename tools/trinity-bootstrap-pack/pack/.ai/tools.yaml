@@ -1,0 +1,5 @@
+$schema: ./schemas/tools.schema.json
+version: "2"
+# Tool registry — populated by the operator after install.
+# Each entry: { name, path, bin, schema_version, capabilities[], contract_version }
+tools: []

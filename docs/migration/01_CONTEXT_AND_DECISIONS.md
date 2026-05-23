@@ -58,7 +58,7 @@ audience: "Anyone executing or auditing the trinity_v2 migration"
 **Source:** Commit 0 evidence (`diff` shows IDENTICAL)
 
 ### D6 — ai-docs source = <upstream-project>/ai-docs/ (Option B) พร้อม scrub
-**Why:** <upstream-project>/ai-docs/ มี structure ที่ดี (`01-CORE_PROTOCOL/`, `02-STANDARDS/`, `03-PROCESS/`, `04-MEMORY/`) — battle-tested มากกว่า generic /<workspace-root>/ai-docs/
+**Why:** <upstream-project>/ai-docs/ มี structure ที่ดี (`01-CORE_PROTOCOL/`, `02-STANDARDS/`, `03-PROCESS/`, `04-MEMORY/`) — battle-tested มากกว่า generic /yai_project/ai-docs/
 **How to apply:** Copy 11 ไฟล์ + scrub 3 ไฟล์ที่มี <upstream-project>-specific keywords (`SAFETY_GATES.md`, `ENV_VARS.md`, `ROLLBACK_PROCEDURES.md`)
 **Risk acknowledged:** Star + Gemini + Claude เตือนว่าเสี่ยง <upstream-project> contamination — ผู้ใช้ยืนยันยังเลือก B (override)
 **Mitigation:** Sanitization บังคับ — replace `<upstream-project>/smarty/deploy_dev_order/FTP_CRED` ด้วย placeholders

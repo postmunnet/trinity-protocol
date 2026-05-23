@@ -24,10 +24,15 @@ Usage:
 
 Examples:
   bash .ai/cli/agent clarification_helper draft \
-      --session-path .ai/sessions/<sid> "task description"
-  bash .ai/cli/agent plan_helper draft --session-path .ai/sessions/<sid>
+      --session-path active "task description"
+  bash .ai/cli/agent plan_helper draft --session-path active
   bash .ai/cli/agent executor_helper draft \
       --session-path .ai/sessions/<sid> --step-id S1
+
+Session path resolution:
+  --session-path active   resolves to the kernel's current_session pointer
+                          (read from .ai/state/status.json at invocation time).
+  --session-path <path>   absolute or repo-relative; passed through unchanged.
 
 Advanced (direct module invocation):
   cd .ai && python3 -m cli.agents.<agent_name> [args]
@@ -72,5 +77,33 @@ if [ ! -d "$AGENTS_DIR/$AGENT_NAME" ] || [ ! -f "$AGENTS_DIR/$AGENT_NAME/__main_
     exit 2
 fi
 
+# Pre-process: expand `--session-path active` to the kernel's
+# current_session pointer (from .ai/state/status.json). Resolution
+# happens once at invocation; concurrent `sss` calls may race and
+# land on a different session — same semantics as KI-2026-05-16-001.
+new_args=()
+prev=""
+for arg in "$@"; do
+    if [ "$prev" = "--session-path" ] && [ "$arg" = "active" ]; then
+        resolved="$(python3 -c '
+import json, sys
+from pathlib import Path
+status = Path("'"$AI_ROOT"'") / "state" / "status.json"
+try:
+    cur = json.loads(status.read_text())["current_session"]
+except Exception as e:
+    sys.stderr.write(f"agent: failed to resolve --session-path active: {e}\n")
+    sys.exit(78)
+print(cur)
+')"
+        if [ -z "$resolved" ]; then
+            exit 78
+        fi
+        arg="$resolved"
+    fi
+    new_args+=("$arg")
+    prev="$arg"
+done
+
 cd "$AI_ROOT"
-exec python3 -m "cli.agents.$AGENT_NAME" "$@"
+exec python3 -m "cli.agents.$AGENT_NAME" "${new_args[@]}"

@@ -1,0 +1,11 @@
+---
+title: "{{PROJECT_NAME}} — Gemini CLI entrypoint"
+trinity-version: 2.0
+trinity-pack: trinity-bootstrap-pack-v1
+---
+
+# {{PROJECT_NAME}} (Gemini / GEMINI.md)
+
+Mirrors `CLAUDE.md` — same short codes, same boundaries.
+
+See [`CLAUDE.md`](CLAUDE.md) for the canonical entrypoint.
