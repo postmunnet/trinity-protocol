@@ -313,7 +313,11 @@ def new(name: str):
     # 6. Update Global State (F4 fix: increment at system.active_capsules to match close.py)
     current_status = state_mgr.load_status()
     current_status["system"]["status"] = "busy"
-    current_status["current_session"] = str(session_path)
+    # Store ABSOLUTE path so downstream commands (vvv/nnn/gogogo/ddd/rrr/close)
+    # can resolve consistently regardless of caller cwd. Bootstrap-installed
+    # projects called us with a relative cwd (e.g., ".") which used to land
+    # a relative current_session that broke Path.relative_to() in vvv.
+    current_status["current_session"] = str(session_path.resolve())
     current_status["system"]["active_capsules"] = current_status["system"].get("active_capsules", 0) + 1
 
     # F1: emit session.created via the sss ritual library so the .ai/rituals/sss/

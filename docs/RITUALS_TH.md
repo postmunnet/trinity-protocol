@@ -147,6 +147,50 @@
 
 ---
 
+## Retro artifacts (ไฟล์ที่ rrr สร้าง)
+
+เวลา `rrr` ทำงาน Trinity จะสร้าง **retro artifact 4 ชิ้น** ที่แยกหน้าที่กันชัดเจน
+การแยกแบบนี้มีไว้เพื่อไม่ให้ mechanical closure (kernel ตัดสิน) กับ
+semantic reflection (มนุษย์หรือ agent เขียน) ทับเส้นกัน
+รายละเอียดเชิง contract อยู่ที่
+[`specs/TRINITY_RETRO_RRR_SPLIT_SPEC_V1.md`](specs/TRINITY_RETRO_RRR_SPLIT_SPEC_V1.md)
+
+| # | Artifact | Path | Format | ผู้เขียน | Trigger |
+|---|---|---|---|---|---|
+| 1 | Retro envelope | `<session>/THINK/retro_envelope.md` | YAML frontmatter, 13 ฟิลด์ที่ schema ล็อกไว้ (`trinity.retro_envelope.v1`) | kernel `rrr.py` | ทุกครั้งที่ `rrr` |
+| 2 | Session retro report | `<session>/THINK/RETRO.md` | Markdown report (verdict, metrics, acceptance evidence) | kernel `rrr.py` | ทุกครั้งที่ `rrr` |
+| 3 | **Semantic lessons** (optional) | `<session>/THINK/RETRO_LESSONS.md` | Markdown body ("What worked / What failed / Lessons / Followups") ที่มาจาก stdout ของ agent `retro_writer`; kernel เป็นคนเขียนไฟล์เอง (agent ไม่ได้แตะ disk โดยตรง) | kernel `rrr.py` (จาก stdout ของ agent `retro_writer`) | **ออกเฉพาะตอนใส่ flag `--with-lessons`** |
+| 4 | Memory retro | `.ai/memory/retros/NNNN_<date>_<slug>.md` | Markdown ที่ `memory-cli` index ด้วย FTS5 | kernel `rrr.py` ก๊อปและ index | ทุกครั้งที่ `rrr` |
+
+หลักสำคัญที่ต้องจำ:
+
+- Schema ของ retro envelope ถูก **FROZEN** ไว้แล้ว — 13 ฟิลด์ใน
+  `RRR_OUTPUT_FIELDS` (ดู `.ai/cli/core/retro_rrr_contract.py`)
+  เป็น closed set การเพิ่ม เปลี่ยนชื่อ หรือเอาฟิลด์ออก ต้องผ่าน
+  **Article XXIX amendment** เท่านั้น — ต้องมี proposal + rationale +
+  impact analysis + human approval + version bump + audit entry
+  ห้ามแก้เงียบ ๆ
+- `retro_envelope.md` คือ deterministic record — ไม่มี prose ไม่มี
+  lessons ไม่มี value judgment มีแต่ฟิลด์เชิงกลไกที่ derive ได้จาก
+  session artifact (acceptance results, forbidden-diff status, audit
+  chain anchor, gogogo verdicts, artifact paths, memory index envelope)
+- `RETRO.md` คือ structural record ที่ kernel เป็นคนเขียน
+  (verdict, metrics, acceptance evidence) — เขียน **ทุกครั้ง** และ
+  agent จะไม่มาแก้ไฟล์นี้ การ pin `RETRO.md` ให้กลายเป็น
+  canonical doctrine ทำได้โดยมนุษย์เท่านั้น ผ่าน `memory-cli pin`
+- `RETRO_LESSONS.md` คือ semantic companion ที่เป็น **optional** —
+  จะออกเฉพาะตอนเรียก `rrr` ด้วย flag `--with-lessons` เท่านั้น
+  agent `retro_writer` (proposal เท่านั้น) จะปล่อย markdown body
+  ออกมาทาง stdout จากนั้น kernel `rrr.py` จะ capture stdout แล้ว
+  เขียนเป็นไฟล์แยกข้าง ๆ `RETRO.md` — agent ไม่ได้แตะ session
+  directory เอง
+- `retro_envelope.md` ถูกอ่านโดย `presentation_renderer.py` ตอน
+  `close` เพื่อสร้าง `CLOSE_PACK.md` สำหรับ operator
+  ดังนั้น downstream consumer (Close, DDD, sibling CLI) ต้องปฏิเสธ
+  envelope ที่ `schema_version` ไม่ใช่ `trinity.retro_envelope.v1`
+
+---
+
 ## `close` — Close Session / Final State
 
 ใช้ปิด session อย่างมีสถานะ

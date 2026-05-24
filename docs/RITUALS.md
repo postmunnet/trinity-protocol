@@ -155,6 +155,49 @@ In Trinity v0.1.0 ritual flow, `rrr` delegates memory handoff through
 
 ---
 
+## Retro artifacts
+
+When `rrr` runs, Trinity produces **four distinct retro artifacts**. They are
+intentionally separated so that mechanical closure (kernel-decided) and
+semantic reflection (human or agent-authored) never collapse into one
+write. The split is governed by
+[`specs/TRINITY_RETRO_RRR_SPLIT_SPEC_V1.md`](specs/TRINITY_RETRO_RRR_SPLIT_SPEC_V1.md).
+
+| # | Artifact | Path | Format | Writer | Trigger |
+|---|---|---|---|---|---|
+| 1 | Retro envelope | `<session>/THINK/retro_envelope.md` | YAML frontmatter, 13-field schema-locked (`trinity.retro_envelope.v1`) | kernel `rrr.py` | every `rrr` |
+| 2 | Session retro report | `<session>/THINK/RETRO.md` | Markdown report (verdict, metrics, acceptance evidence) | kernel `rrr.py` | every `rrr` |
+| 3 | **Semantic lessons** (optional) | `<session>/THINK/RETRO_LESSONS.md` | Markdown body ("What worked / What failed / Lessons / Followups") sourced from `retro_writer` agent stdout; kernel writes the file (the agent never touches disk directly) | kernel `rrr.py` (from `retro_writer` agent stdout) | **only with `--with-lessons` flag** |
+| 4 | Memory retro | `.ai/memory/retros/NNNN_<date>_<slug>.md` | Markdown copy indexed by `memory-cli` (FTS5) | kernel `rrr.py` copies + indexes | every `rrr` |
+
+Key invariants:
+
+- The retro envelope schema is **FROZEN**. The 13 fields enumerated in
+  `RRR_OUTPUT_FIELDS` (see `.ai/cli/core/retro_rrr_contract.py`) form a
+  closed set. Adding, renaming, or removing a field requires an explicit
+  **Article XXIX amendment** — proposal + rationale + impact analysis +
+  human approval + version bump + audit entry. No silent edits.
+- `retro_envelope.md` is the deterministic record. It carries no prose,
+  no lessons, no value judgments — only mechanical fields derivable from
+  session artifacts (acceptance results, forbidden-diff status, audit
+  chain anchor, gogogo verdicts, artifact paths, memory index envelope).
+- `RETRO.md` is the kernel-authored structural record (verdict, metrics,
+  acceptance evidence). It is **always** written, never extended by the
+  agent. Pinning a `RETRO.md` as canonical doctrine is human-only via
+  `memory-cli pin`.
+- `RETRO_LESSONS.md` is the **optional** semantic companion. Only fired
+  when `rrr` is invoked with `--with-lessons`. The `retro_writer`
+  in-house agent (proposal-only) emits the markdown body to stdout; the
+  kernel `rrr.py` captures that stdout and writes it to disk as a
+  separate file alongside `RETRO.md`. The agent never writes to the
+  session directory itself.
+- `retro_envelope.md` is read by `presentation_renderer.py` at `close`
+  time to build the operator-facing `CLOSE_PACK.md`. Downstream
+  consumers (Close, DDD, sibling CLIs) MUST reject any envelope whose
+  `schema_version` is not `trinity.retro_envelope.v1`.
+
+---
+
 ## `close` - Close Session / Final State
 
 Use `close` to end a session with explicit state.
