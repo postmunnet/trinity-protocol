@@ -103,8 +103,14 @@ for a single invocation. Useful when you want to deliberately work on
 the local commit without auto-syncing (e.g. WIP investigation).
 
 See `.ai/cli/commands/sss.py:_git_pull_preflight` for the implementation
-and `.ai/cli/tests/test_sss_auto_pull_preflight.py` for the eight test
+and `.ai/cli/tests/test_sss_auto_pull_preflight.py` for the nine test
 cases covering every guard path.
+
+The preflight finds its git repo via `_find_git_root()`: it walks up
+from cwd first, then falls back to the kernel source root (derived
+from `__file__`). The fallback matters for project-local launchers
+that `cd` into the project root rather than the kernel-source root —
+without it, the preflight would silently skip on those instances.
 
 ## CLI Command Rule
 

@@ -179,6 +179,33 @@ app = typer.Typer(
 )
 
 
+def _find_git_root() -> "Optional[Path]":
+    """Find a git repository to pull from for the SSOT preflight.
+
+    Preference order:
+      1. cwd ancestors (operator's PWD context wins if both apply)
+      2. kernel source root, derived from this file's location
+         (handles project-local launchers that ``cd`` into the
+         project root rather than the kernel-source root — VPS does
+         this; without the fallback the preflight silently skips on
+         the primary travel-work target).
+
+    sss.py lives at ``<kernel-root>/.ai/cli/commands/sss.py``; four
+    parent dirs up therefore gives the kernel source root.
+
+    Returns the resolved path of the git root, or ``None`` if no git
+    repository is reachable from either location.
+    """
+    cwd = Path.cwd()
+    for p in [cwd, *cwd.parents]:
+        if (p / ".git").exists():
+            return p
+    kernel_root = Path(__file__).resolve().parents[3]
+    if (kernel_root / ".git").exists():
+        return kernel_root
+    return None
+
+
 def _git_pull_preflight() -> None:
     """Auto-sync with origin/main before sss scaffolds a new session.
 
@@ -189,10 +216,16 @@ def _git_pull_preflight() -> None:
 
     Guards (in order):
       1. TRINITY_SKIP_PULL=1 env → silent skip (operator opt-out)
-      2. No `.git/` in cwd or ancestors → silent skip (not a git clone)
+      2. No `.git/` reachable from cwd OR kernel source root
+         → silent skip (not a git clone). The kernel-root fallback
+         (see :func:`_find_git_root`) handles project-local launchers
+         that ``cd`` to the project root before invoking python.
       3. git binary missing → one-line note · skip
       4. fetch fails (network / timeout) → warning · skip pull
       5. pull --ff-only fails (conflict) → warning · proceed to scaffold
+
+    All git operations use ``git -C <git_root>`` so the pull targets the
+    correct repo regardless of the current working directory.
 
     Output goes to stderr (matches the existing typer.echo pattern in
     this file) so it does not pollute structured stdout. Timeout 5s.
@@ -203,13 +236,15 @@ def _git_pull_preflight() -> None:
     if os.environ.get("TRINITY_SKIP_PULL") == "1":
         return
 
-    cwd = Path.cwd()
-    if not any((p / ".git").exists() for p in [cwd, *cwd.parents]):
+    git_root = _find_git_root()
+    if git_root is None:
         return
+
+    git_root_arg = str(git_root)
 
     try:
         fetch = subprocess.run(
-            ["git", "fetch", "origin", "main"],
+            ["git", "-C", git_root_arg, "fetch", "origin", "main"],
             capture_output=True, text=True, timeout=5,
         )
         if fetch.returncode != 0:
@@ -221,7 +256,7 @@ def _git_pull_preflight() -> None:
             return
 
         pull = subprocess.run(
-            ["git", "pull", "--ff-only", "origin", "main"],
+            ["git", "-C", git_root_arg, "pull", "--ff-only", "origin", "main"],
             capture_output=True, text=True, timeout=5,
         )
         if pull.returncode == 0:

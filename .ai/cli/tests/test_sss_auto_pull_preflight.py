@@ -95,15 +95,63 @@ def test_skip_when_env_opt_out(
 
 
 def test_skip_when_not_git_repo(not_in_git_repo: Path, capsys):
+    """No `.git/` anywhere → preflight silently skips.
+
+    `_find_git_root` checks two sources: cwd ancestors AND the kernel
+    source root (see :func:`_find_git_root` in sss.py). The fixture
+    already takes care of the cwd-ancestors path. The kernel source
+    root, however, is the live Trinity checkout — which *is* a git
+    repo after P1. We therefore patch `_find_git_root` directly so
+    this test models the genuine "no git anywhere" scenario.
+    """
     # Sanity: confirm fixture really put us outside any .git ancestor.
     cwd = Path.cwd()
     assert not any((p / ".git").exists() for p in [cwd, *cwd.parents])
 
-    with patch("subprocess.run") as run:
+    with patch("cli.commands.sss._find_git_root", return_value=None), \
+         patch("subprocess.run") as run:
         _git_pull_preflight()
     run.assert_not_called()
     err = capsys.readouterr().err
     assert err == "", f"expected no stderr output, got: {err!r}"
+
+
+def test_kernel_root_fallback_when_cwd_not_in_repo(
+    not_in_git_repo: Path, capsys
+):
+    """cwd has no `.git/` ancestor, but the kernel source root does.
+
+    This models the VPS launcher pattern: the project-local launcher
+    `cd`s into the project root (which is not a git clone in our SSOT
+    layout — only `core/trinity_v2/` is). Without the kernel-root
+    fallback the preflight would silently skip; with it, the preflight
+    still pulls from origin/main using `git -C <kernel_root>`.
+    """
+    cwd = Path.cwd()
+    assert not any((p / ".git").exists() for p in [cwd, *cwd.parents])
+
+    fake_kernel_root = Path("/fake/kernel/root")
+    fake_fetch = _fake_completed(0)
+    fake_pull = _fake_completed(0, stdout="Already up to date.\n")
+
+    with patch(
+        "cli.commands.sss._find_git_root", return_value=fake_kernel_root
+    ), patch(
+        "subprocess.run", side_effect=[fake_fetch, fake_pull]
+    ) as run:
+        _git_pull_preflight()
+
+    # Both subprocess calls received `git -C <fake_kernel_root>`.
+    assert run.call_count == 2
+    fetch_args, _ = run.call_args_list[0]
+    pull_args, _ = run.call_args_list[1]
+    assert fetch_args[0][:3] == ["git", "-C", str(fake_kernel_root)]
+    assert pull_args[0][:3] == ["git", "-C", str(fake_kernel_root)]
+    assert "fetch" in fetch_args[0]
+    assert "pull" in pull_args[0]
+
+    err = capsys.readouterr().err
+    assert "already up to date" in err.lower()
 
 
 def test_clean_pull_already_up_to_date(in_git_repo: Path, capsys):
