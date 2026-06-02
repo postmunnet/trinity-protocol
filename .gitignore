@@ -1,6 +1,8 @@
 # OS
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
 
 # Python
 __pycache__/
@@ -9,6 +11,16 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+
+# Node (defensive — for tooling that ships under scripts/, tools/)
+node_modules/
+
+# SQLite / per-instance data
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-journal
 
 # Trinity runtime artifacts (per-project, not for VCS)
 .ai/sessions/*
@@ -28,11 +40,14 @@ venv/
 .ai/state/*
 !.ai/state/.gitkeep
 .ai/logs/
+.ai/tmp/
 .ai/.memory/
 .ai/memory/*
 !.ai/memory/.gitkeep
+.ai/.semantic/
 .memory/
 .trinity/
+.semantic/
 /audit/
 
 # Export outputs
@@ -40,12 +55,27 @@ dist/
 *_github_export/
 trinity_v2_github_export/
 
-# Editor
+# Editor / IDE (per-machine state)
 .vscode/
 .idea/
-*.swp
+.cursor/
+.warp/
+.claude/
+.gemini/
+.codex/
 
-# Secrets
+# Secrets / credentials
 .env
 .env.local
+.env.*
 .secrets/
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Scratch / backup / logs
+*.bak
+*.orig
+*.rej
+*.log
