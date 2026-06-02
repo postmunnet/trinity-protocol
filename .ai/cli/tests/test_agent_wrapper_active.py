@@ -15,8 +15,17 @@ WRAPPER = REPO_ROOT / ".ai" / "cli" / "agent"
 STATUS_JSON = REPO_ROOT / ".ai" / "state" / "status.json"
 
 
-def _read_current_session() -> str:
-    return json.loads(STATUS_JSON.read_text())["current_session"]
+def _read_current_session() -> str | None:
+    """Defensive read · returns None if file missing, malformed,
+    or key absent/null. Tests using this should pytest.skip when None
+    (e.g. fresh CI environment with no active session pointer)."""
+    if not STATUS_JSON.exists():
+        return None
+    try:
+        data = json.loads(STATUS_JSON.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+    return data.get("current_session")
 
 
 def test_wrapper_exists_and_executable() -> None:
@@ -40,7 +49,8 @@ def test_active_resolves_to_current_session(tmp_path: Path) -> None:
     78 before reaching python.
     """
     current = _read_current_session()
-    assert current  # precondition: a session must be open for this test
+    if not current:
+        pytest.skip("no active session pointer — integration test needs one")
     proc = subprocess.run(
         ["bash", str(WRAPPER), "clarification_helper", "draft",
          "--session-path", "active", "--help"],
@@ -85,6 +95,8 @@ def test_active_fails_cleanly_when_status_missing(tmp_path: Path, monkeypatch) -
 def test_non_active_session_path_passes_through(tmp_path: Path) -> None:
     """A literal session path (not 'active') is forwarded as-is."""
     current = _read_current_session()
+    if not current:
+        pytest.skip("no active session pointer — integration test needs one")
     proc = subprocess.run(
         ["bash", str(WRAPPER), "clarification_helper", "draft",
          "--session-path", current, "--help"],
