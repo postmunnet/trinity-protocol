@@ -79,3 +79,6 @@ id_ed25519*
 *.orig
 *.rej
 *.log
+
+# Local research / knowledge corpus (not for public SSOT)
+references/
