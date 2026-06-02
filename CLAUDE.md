@@ -73,9 +73,14 @@ CLI-native AI microkernel — Coordinator + Judge for vendor AI. Spec pack v2.0 
 | `ddd` | Done/Deploy (human gate) | After gogogo + verify |
 | `rrr` | Retrospective + memory update | End of session |
 
-**Sequence (do not skip):** `sss -> nnn -> vvv -> gogogo -> ddd -> rrr`
+**Sequence (do not skip):** `sss -> vvv -> nnn -> gogogo -> ddd -> rrr`
 
-Note: graph order is `nnn_pass` (planning passes first, locks scope) -> `vvv_pass` (verification confirms post-plan) -> `gogogo`. The ritual short-codes can be invoked in either typed order; the kernel enforces the graph sequence per `.ai/graphs/standard.yaml`.
+Physical graph transitions: `vvv_pass` fires `THINK→SANDBOX` (verifier;
+evidence = `.state/vvv_pass` marker written by vvv) then `nnn_pass` fires
+`SANDBOX→DO` (kernel; evidence = plan envelope). Canonical doctrine lives in
+[`docs/RITUALS.md`](docs/RITUALS.md) — if graph or code diverges, RITUALS.md
+wins. See `.ai/cli/tests/test_ritual_doctrine_consistency.py` for the
+lock-step enforcement that catches drift.
 
 Detailed contract: [`docs/ai_entry/SHORT_CODES.md`](docs/ai_entry/SHORT_CODES.md)
 

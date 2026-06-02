@@ -48,11 +48,11 @@ def _default_workspace_root() -> Path:
     """Default central home root: the Trinity checkout itself.
 
     In this repo layout:
-      <trinity-root>/.ai/cli/core/project_registry.py
+      <user-home>/Downloads/yai_project/trinity_v2/.ai/cli/core/project_registry.py
 
     the default central homes should live in:
-      <trinity-root>/.trinity
-      <trinity-root>/.memory
+      <user-home>/Downloads/yai_project/trinity_v2/.trinity
+      <user-home>/Downloads/yai_project/trinity_v2/.memory
 
     Environment variables still override this for installed/global setups.
     """

@@ -1,4 +1,10 @@
-"""Verify 5 sibling tools are paired-registered in tools.yaml + capabilities.yaml."""
+"""Verify the registered sibling tools are paired in tools.yaml + capabilities.yaml.
+
+Updated 2026-05-24: added memory-semantic-cli (8 tools total). memory-semantic-cli
+is registered for discoverability only — it carries `sibling_only: true` and
+`kernel_invocable: false` in tools.yaml because the Trinity kernel must not
+call intelligence siblings directly per the kernel-intelligence boundary.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,6 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 EXPECTED_TOOLS = {
     "browser-cli",
     "memory-cli",
+    "memory-semantic-cli",
     "notify-cli",
     "image-cli",
     "seo-genie-cli",
@@ -25,7 +32,7 @@ def registry():
     return load_registry(PROJECT_ROOT)
 
 
-def test_all_seven_tools_registered(registry) -> None:
+def test_all_expected_tools_registered(registry) -> None:
     assert set(registry.names()) == EXPECTED_TOOLS
 
 

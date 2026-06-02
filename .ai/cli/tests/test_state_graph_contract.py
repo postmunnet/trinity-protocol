@@ -126,8 +126,8 @@ def test_standard_transitions_t1_t8_canonical_order() -> None:
     DEPLOYED→RETRO→DONE without gaps."""
     expected_sequence = [
         ("READY", "THINK", "sss"),
-        ("THINK", "SANDBOX", "nnn_pass"),
-        ("SANDBOX", "DO", "vvv_pass"),
+        ("THINK", "SANDBOX", "vvv_pass"),
+        ("SANDBOX", "DO", "nnn_pass"),
         ("DO", "VERIFIED", "gogogo_complete"),
         ("VERIFIED", "PROMOTED", "promote_request"),
         ("PROMOTED", "DEPLOYED", "deploy_request"),

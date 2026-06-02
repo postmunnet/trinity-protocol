@@ -1,6 +1,12 @@
-# trinity-bootstrap-pack — v1.1
+# trinity-bootstrap-pack — v1.2
 
 Install Trinity OS into a target project directory in **one command**.
+
+> v1.2 (2026-05-23) fixes v1.1 bug where `sss`/`vvv` crashed in bootstrap-installed
+> projects because the kernel needs `templates/`, `graphs/`, `schemas/`, `shims/`,
+> and `checklists/` at runtime — not just `cli/` + `rituals/`. v1.2 symlinks
+> all 7 kernel-canonical dirs (was 2). Also fixes kernel `session.py` to store
+> absolute `current_session` paths (was relative under bootstrap setups).
 
 ## Quick start — three flavours
 
@@ -26,10 +32,9 @@ bash ~/.trinity-kernel/tools/trinity-bootstrap-pack/install.sh ~/code/my-app --p
 
 After install, the target has a **fully-wired Trinity setup**:
 - `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` entrypoints (project name substituted)
-- `.ai/` skeleton: `ssot.yaml`, `tools.yaml`, `policies/`, `graphs/`, `schemas/`
-- `.ai/cli/` ← symlinked (or copied) from trinity_v2 — the runnable kernel
-- `.ai/rituals/` ← symlinked from trinity_v2
-- `.ai/requirements.txt` ← copied for `pip install`
+- `.ai/` project-customizable files: `ssot.yaml`, `tools.yaml`, `policies/`
+- `.ai/cli/`, `.ai/rituals/`, `.ai/graphs/`, `.ai/schemas/`, `.ai/shims/`, `.ai/templates/`, `.ai/checklists/` ← all symlinked (or copied) from trinity_v2 — the kernel-canonical runtime
+- `.ai/requirements.txt`, `.ai/tools.capabilities.yaml` ← always copied
 - `ai-docs/`: `QUICK_START.md`, `SHORT_CODES.md`, `CORE_RULES.md`, `WORKFLOW.md`
 - `.trinity-install-receipt.json` with pack version + sha256 manifest + kernel-wire info
 

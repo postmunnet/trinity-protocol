@@ -82,7 +82,7 @@
     "Clarification Agent"
   ],
   "state_transition": {
-    "from": ["THINK"],
+    "from": ["SANDBOX"],
     "to": ["PLAN"]
   },
   "failure_behavior": {

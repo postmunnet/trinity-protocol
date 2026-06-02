@@ -13,13 +13,16 @@ from lib.kernel_wire import KernelWireError, wire_kernel
 
 
 def _fake_source(tmp_path: Path) -> Path:
-    """Build a minimal trinity_v2-shaped source root."""
+    """Build a minimal trinity_v2-shaped source root with v1.2 bindings."""
     src = tmp_path / "trinity_v2_src"
-    (src / ".ai" / "cli").mkdir(parents=True)
+    # All 7 KERNEL_BINDINGS dirs need to exist on the source side
+    for sub in ("cli", "rituals", "graphs", "schemas", "shims", "templates", "checklists"):
+        d = src / ".ai" / sub
+        d.mkdir(parents=True)
+        (d / "marker.txt").write_text(f"{sub}\n", encoding="utf-8")
     (src / ".ai" / "cli" / "ai").write_text("#!/bin/sh\n", encoding="utf-8")
-    (src / ".ai" / "rituals").mkdir()
-    (src / ".ai" / "rituals" / "marker.txt").write_text("rituals\n", encoding="utf-8")
     (src / ".ai" / "requirements.txt").write_text("typer\n", encoding="utf-8")
+    (src / ".ai" / "tools.capabilities.yaml").write_text("version: '1'\n", encoding="utf-8")
     return src
 
 
@@ -39,15 +42,17 @@ def test_symlink_default(tmp_path: Path) -> None:
     tgt.mkdir()
     res = wire_kernel(mode="symlink", source_root=src, target=tgt, dry_run=False, force=False)
     assert res.mode == "symlink"
-    cli = tgt / ".ai" / "cli"
-    rituals = tgt / ".ai" / "rituals"
-    assert cli.is_symlink()
-    assert rituals.is_symlink()
-    assert cli.resolve() == (src / ".ai" / "cli").resolve()
-    # requirements.txt is always copied (not symlinked)
+    # v1.2: all 7 dirs symlinked
+    for sub in ("cli", "rituals", "graphs", "schemas", "shims", "templates", "checklists"):
+        link = tgt / ".ai" / sub
+        assert link.is_symlink(), f"{sub} should be a symlink"
+        assert link.resolve() == (src / ".ai" / sub).resolve()
+    # requirements.txt + tools.capabilities.yaml are always COPIED (not symlinked)
     req = tgt / ".ai" / "requirements.txt"
-    assert req.is_file()
-    assert not req.is_symlink()
+    caps = tgt / ".ai" / "tools.capabilities.yaml"
+    for f in (req, caps):
+        assert f.is_file()
+        assert not f.is_symlink()
 
 
 def test_copy_mode_deep_copy(tmp_path: Path) -> None:
@@ -56,10 +61,12 @@ def test_copy_mode_deep_copy(tmp_path: Path) -> None:
     tgt.mkdir()
     res = wire_kernel(mode="copy", source_root=src, target=tgt, dry_run=False, force=False)
     assert res.mode == "copy"
-    cli = tgt / ".ai" / "cli"
-    assert cli.is_dir()
-    assert not cli.is_symlink()
-    assert (cli / "ai").is_file()
+    # v1.2: all 7 dirs deep-copied, none are symlinks
+    for sub in ("cli", "rituals", "graphs", "schemas", "shims", "templates", "checklists"):
+        d = tgt / ".ai" / sub
+        assert d.is_dir(), f"{sub} should be a real dir"
+        assert not d.is_symlink(), f"{sub} must NOT be a symlink in copy mode"
+    assert (tgt / ".ai" / "cli" / "ai").is_file()
 
 
 def test_dry_run_no_filesystem_writes(tmp_path: Path) -> None:

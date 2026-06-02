@@ -79,6 +79,10 @@ Trinity requires:
 
 If the agent cannot produce the artifact, the work cannot be promoted.
 
+> **New here?** Start with [`docs/quickstart.md`](docs/quickstart.md) for
+> the 60-second hands-on tour. The full command reference lives deeper
+> in the docs tree.
+
 ---
 
 ## Current Status
@@ -96,7 +100,7 @@ Behavioral proof, not just test count:
 - Audit chain integrity
 - Tool contract compliance
 - Verifier verdict behavior
-- Ritual command flow
+- Operator command sequence
 - Human approval requirements for risky transitions
 
 Latest verified test evidence:

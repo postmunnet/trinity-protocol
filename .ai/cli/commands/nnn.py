@@ -4,7 +4,9 @@ Spec ref: .ai/shims/nnn/SHIM.md (canonical contract)
           docs/specs/03_GOAL_LOOP_SPEC.md §8 (Budget enforcement)
           Decision D11 (budget breach -> NEEDS_HUMAN)
 
-Required: an active session in graph_state THINK with .state/vvv_pass present.
+Required: an active session in graph_state SANDBOX with .state/vvv_pass present
+(vvv must have transitioned THINK→SANDBOX before nnn runs — see RITUALS.md
+canonical order: sss → vvv → nnn → gogogo → ddd → rrr → close).
 
 A plan envelope JSON file (--plan-envelope path) supplies the numbered
 steps + budget estimates. The command:
@@ -12,11 +14,11 @@ steps + budget estimates. The command:
   1. Validates the .state/vvv_pass marker
   2. Runs Budget.check against the envelope
   3. On breach without override: writes 02_SCOPE.md with budget_status
-     NEEDS_HUMAN, no .state/nnn_pass, no THINK->SANDBOX firing
+     NEEDS_HUMAN, no .state/nnn_pass, no SANDBOX->DO firing
   4. On pass (or override): writes 02_SCOPE.md, 03_ACCEPTANCE.md,
      .state/plan.json, .state/nnn_pass marker, then fires nnn_pass
-     (THINK->SANDBOX, kernel) and vvv_pass (SANDBOX->DO, verifier;
-     evidence is the existing .state/vvv_pass marker)
+     (SANDBOX->DO, kernel). vvv already fired vvv_pass (THINK->SANDBOX)
+     as part of the prior vvv ritual, so nnn fires a single transition.
 
 Two audit events are appended in either path: nnn.proposed (kernel) and
 on-pass nnn.passed (human or kernel-via-override).
@@ -32,6 +34,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
+from ..core.audit import get_chain_for_project
 from ..core.budget import Budget
 from ..core.loop import Loop
 from ..core.next_action import compute as compute_next, render_one_line
@@ -157,8 +160,8 @@ def _nnn_inner(
     # RC v1.1-rc Article XII.5 — load the nnn pack and assert its declared
     # transition envelope BEFORE any state mutation (Article XX). Note the
     # pack's allowed_next_states is the CONCEPTUAL successor ("PLAN"); the
-    # physical state machine collapses PLAN into SANDBOX (graphs/standard.yaml
-    # fires nnn_pass: THINK→SANDBOX). The pack guard asserts the conceptual
+    # physical state machine collapses PLAN into DO (graphs/standard.yaml
+    # fires nnn_pass: SANDBOX→DO). The pack guard asserts the conceptual
     # envelope; the loop.fire below asserts the physical envelope.
     nnn_pack = load_pack(
         "nnn",
@@ -402,7 +405,9 @@ def _nnn_inner(
         },
     )
 
-    # THINK -> SANDBOX (kernel, trigger=nnn_pass)
+    # SANDBOX -> DO (kernel, trigger=nnn_pass). Per RITUALS.md canonical order,
+    # vvv fires THINK→SANDBOX upon answering the 5 questions; nnn fires the
+    # second physical transition SANDBOX→DO. nnn no longer double-fires.
     loop.fire(
         "nnn_pass",
         decided_by="kernel",
@@ -411,12 +416,6 @@ def _nnn_inner(
                 plan_state_path.relative_to(config.project_root)
             )
         },
-    )
-    # SANDBOX -> DO (verifier, trigger=vvv_pass; evidence = vvv_pass marker)
-    loop.fire(
-        "vvv_pass",
-        decided_by="verifier",
-        evidence={"marker_file": ".state/vvv_pass", "check": "exists"},
     )
 
     console.print(

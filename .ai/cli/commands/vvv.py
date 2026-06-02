@@ -234,6 +234,19 @@ def _run_inner(
         },
     )
 
+    # Fire vvv_pass: THINK → SANDBOX (verifier-decided; evidence = the
+    # just-written marker). Guarded so a re-run on an already-transitioned
+    # session re-writes 01_PROMPT.md / refreshes the marker without crashing
+    # on a non-existent SANDBOX-state transition.
+    if loop.current() == "THINK":
+        loop.fire(
+            "vvv_pass",
+            decided_by="verifier",
+            evidence={
+                "marker_path": str(marker.relative_to(config.project_root)),
+            },
+        )
+
     console.print(
         Panel(
             f"vvv passed.\n"

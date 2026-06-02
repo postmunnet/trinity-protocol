@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-PACK_VERSION = "trinity-bootstrap-pack-v1"
+PACK_VERSION = "trinity-bootstrap-pack-v1.2"
 
 
 @dataclass(frozen=True)

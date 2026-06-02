@@ -31,7 +31,7 @@
     "headings_present:Scope,In Scope,Out of Scope,Constraints",
     "forbidden_phrases_absent",
     "role_allowed:Planning Agent",
-    "state_transition:THINK->PLAN"
+    "state_transition:SANDBOX->PLAN"
   ],
   "forbidden_actions": [
     "execute_code",
@@ -46,7 +46,7 @@
     "skip_rollback_declaration",
     "skip_acceptance_declaration"
   ],
-  "allowed_current_states": ["THINK"],
+  "allowed_current_states": ["SANDBOX"],
   "allowed_next_states": ["PLAN"],
   "audit_events": [
     "nnn.invoked",

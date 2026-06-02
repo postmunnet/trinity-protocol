@@ -109,16 +109,16 @@ STANDARD_TRANSITIONS: List[StateTransition] = [
     StateTransition(
         from_state="THINK",
         to_state="SANDBOX",
-        trigger="nnn_pass",
-        decided_by="kernel",
-        notes="T2 — plan accepted; THINK→SANDBOX after nnn budget-check",
+        trigger="vvv_pass",
+        decided_by="verifier",
+        notes="T2 — verification questions answered; THINK→SANDBOX (vvv fires this; see RITUALS.md canonical order)",
     ),
     StateTransition(
         from_state="SANDBOX",
         to_state="DO",
-        trigger="vvv_pass",
-        decided_by="verifier",
-        notes="T3 — verification questions answered; SANDBOX→DO",
+        trigger="nnn_pass",
+        decided_by="kernel",
+        notes="T3 — plan accepted; SANDBOX→DO after nnn budget-check (vvv ran first; see RITUALS.md canonical order)",
     ),
     StateTransition(
         from_state="DO",

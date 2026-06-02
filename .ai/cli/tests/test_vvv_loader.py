@@ -61,7 +61,12 @@ def test_vvv_module_source_emits_invoked_and_failed_events():
 
 def test_vvv_pack_loads_and_declares_expected_transitions():
     pack = load_pack(RITUAL)
-    assert pack.contract["allowed_current_states"] == ["THINK"]
+    # Per RITUALS.md canonical order, vvv accepts both fresh THINK state
+    # and re-run SANDBOX state (re-answering questions on an already-
+    # transitioned session). Conceptual next-state remains THINK (the
+    # clarification artifact stays in the THINK folder); physical
+    # transition THINK->SANDBOX is fired by loop.fire("vvv_pass").
+    assert pack.contract["allowed_current_states"] == ["THINK", "SANDBOX"]
     assert pack.contract["allowed_next_states"] == ["THINK"]
 
 

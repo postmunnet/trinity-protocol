@@ -57,11 +57,11 @@ def test_nnn_module_source_emits_pack_declared_lifecycle_events():
 
 
 def test_nnn_pack_loads_and_declares_expected_transitions():
-    """Pack envelope is conceptual: THINK→PLAN. Graph collapses PLAN into
-    SANDBOX (graphs/standard.yaml: nnn_pass: THINK→SANDBOX) — pre-existing
-    structural drift, out of scope for this session."""
+    """Pack envelope is conceptual: SANDBOX→PLAN. Graph collapses PLAN into
+    DO (graphs/standard.yaml: nnn_pass: SANDBOX→DO) — per RITUALS.md canonical
+    order, vvv has already fired THINK→SANDBOX when nnn is invoked."""
     pack = load_pack(RITUAL)
-    assert pack.contract["allowed_current_states"] == ["THINK"]
+    assert pack.contract["allowed_current_states"] == ["SANDBOX"]
     assert pack.contract["allowed_next_states"] == ["PLAN"]
 
 
@@ -79,8 +79,8 @@ def test_nnn_pack_audit_events_cover_full_lifecycle():
 
 def test_nnn_guard_accepts_canonical_transition():
     pack = load_pack(RITUAL)
-    assert check_transition_allowed(pack, "THINK", "PLAN") is True
-    assert_transition_allowed(pack, "THINK", "PLAN")
+    assert check_transition_allowed(pack, "SANDBOX", "PLAN") is True
+    assert_transition_allowed(pack, "SANDBOX", "PLAN")
 
 
 def test_nnn_guard_rejects_off_envelope_current_state():
@@ -92,4 +92,4 @@ def test_nnn_guard_rejects_off_envelope_current_state():
 def test_nnn_guard_rejects_off_envelope_next_state():
     pack = load_pack(RITUAL)
     with pytest.raises(StateTransitionError, match="not in allowed_next_states"):
-        assert_transition_allowed(pack, "THINK", "DEPLOYED")
+        assert_transition_allowed(pack, "SANDBOX", "DEPLOYED")

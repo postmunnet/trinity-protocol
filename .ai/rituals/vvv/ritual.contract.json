@@ -33,7 +33,7 @@
     "semantic_synthesis",
     "auto_pass_on_missing_answer"
   ],
-  "allowed_current_states": ["THINK"],
+  "allowed_current_states": ["THINK", "SANDBOX"],
   "allowed_next_states": ["THINK"],
   "audit_events": [
     "vvv.invoked",

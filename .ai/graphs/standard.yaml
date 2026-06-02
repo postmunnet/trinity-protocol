@@ -33,13 +33,13 @@ transitions:
 
   - from: THINK
     to: SANDBOX
-    trigger: nnn_pass
-    decided_by: kernel
+    trigger: vvv_pass
+    decided_by: verifier
 
   - from: SANDBOX
     to: DO
-    trigger: vvv_pass
-    decided_by: verifier
+    trigger: nnn_pass
+    decided_by: kernel
 
   - from: DO
     to: VERIFIED

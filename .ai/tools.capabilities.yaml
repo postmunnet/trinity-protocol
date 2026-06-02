@@ -64,6 +64,22 @@ tools:
     default_tier_requirement: WARM
     notes: "Read-only artefact retrieval (Memory CLI Constitution v0.1 — exact-only)."
 
+  - name: memory-semantic-cli
+    required_capabilities:
+      - fs.read
+      - fs.write
+    optional_capabilities:
+      - net.outbound
+    default_tier_requirement: WARM
+    notes: |
+      Vector/embedding/similarity sibling (moved-out-of-core half of
+      memory-cli per CONSTITUTION). Sibling-only composition: Trinity
+      kernel MUST NOT call directly per kernel-intelligence boundary
+      (sibling_only: true in tools.yaml). Composes with memory-cli via
+      subprocess. Optional net.outbound = first-run fastembed model
+      download (~500 MB) to ~/.config/memory-semantic-cli/models;
+      MEMORY_SEMANTIC_MOCK_EMBED=1 keeps everything offline + deterministic.
+
   - name: notify-cli
     required_capabilities:
       - net.outbound

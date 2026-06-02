@@ -100,6 +100,51 @@ tools:
       node:test. See docs/specs/05_MEMORY_CLI_SPEC.md and
       docs/contracts/memory-cli/COMMAND_CONTRACT.md.
 
+  - name: memory-semantic-cli
+    description: "Vector/embedding/similarity sibling — moved-out-of-core half of memory-cli per CONSTITUTION. 7 verbs (embed/similar/index/hybrid/model/health/purge). Sibling-only composition; Trinity kernel MUST NOT call directly per kernel-intelligence boundary."
+    path: "${project_root}/../memory-semantic-cli"
+    bin: "node ${project_root}/../memory-semantic-cli/index.js"
+    schema_version: "1"
+    contract_version: "1.0"
+    capabilities:
+      - vector
+      - embedding
+      - similarity
+      - hybrid_search
+      - bulk_embed
+    policy_default: safe
+    sibling_only: true
+    kernel_invocable: false
+    health_check: "--health"
+    install:
+      kind: npm
+      cwd: "${project_root}/../memory-semantic-cli"
+      cmd: "npm install"
+    notes: |
+      v0.1.0-beta — Tier B (shipped 2026-05-24).
+
+      Constitutional posture (sibling-only):
+      - Trinity kernel (ai lll/vvv/nnn/gogogo/rrr/ddd) MUST NOT spawn
+        this sibling directly per kernel-intelligence boundary
+        (memory: feedback_kernel_intelligence_boundary, locked 2026-05-12).
+      - Permitted callers: operator (CLI), debate-cli (planned),
+        summarize-cli (planned), trinity-extension-platform (read-only
+        dashboard).
+      - Composes with memory-cli via subprocess (read-only consumer of
+        chunks) for `hybrid` + `index --from=memory-cli`.
+
+      Mock-mode default for tests: MEMORY_SEMANTIC_MOCK_EMBED=1 →
+      deterministic 1024-dim sha256-derived vectors, no network, no
+      model download. Real embed: fastembed MLE5Large (~500 MB downloaded
+      on first call to ~/.config/memory-semantic-cli/models).
+
+      Deps: fastembed ^2.1.0 + sqlite-vec ^0.1.9 (npm; sqlite-vec ships
+      pre-built .dylib/.so/.dll per platform via optional deps). Tests:
+      23/23 pass under MEMORY_SEMANTIC_MOCK_EMBED=1.
+
+      See memory-semantic-cli/CONSTITUTION.md, TOOL_CONTRACT.json, and
+      trinity.yaml for full spec.
+
 # Forward-looking — register stubs for tools that will land in Phase 1+:
 #   - verify-cli   (verifier rules runtime) — Phase 4
 #

@@ -22,16 +22,25 @@ KernelWireMode = Literal["symlink", "copy", "none", "submodule"]
 
 # Source paths under trinity_v2 root that must be wired into the target.
 # Each entry: (relative-path-under-source, target-relative-path).
+#
+# v1.2 expanded the list after a pack-v1.1 install in a real project (example_project)
+# crashed during `sss` / `vvv` because the kernel needs templates/, graphs/,
+# schemas/, shims/, and checklists/ at runtime — not just cli/ + rituals/.
 KERNEL_BINDINGS: tuple[tuple[str, str], ...] = (
     (".ai/cli", ".ai/cli"),
     (".ai/rituals", ".ai/rituals"),
+    (".ai/graphs", ".ai/graphs"),
+    (".ai/schemas", ".ai/schemas"),
+    (".ai/shims", ".ai/shims"),
+    (".ai/templates", ".ai/templates"),
+    (".ai/checklists", ".ai/checklists"),
 )
 
 # Files copied verbatim (always copy regardless of wire mode) — required for
-# kernel to function. e.g. requirements.txt is small and operator-friendly to
-# have at .ai/requirements.txt.
+# kernel to function but small + operator-friendly to mutate per-project.
 KERNEL_COPY_ALWAYS: tuple[tuple[str, str], ...] = (
     (".ai/requirements.txt", ".ai/requirements.txt"),
+    (".ai/tools.capabilities.yaml", ".ai/tools.capabilities.yaml"),
 )
 
 
