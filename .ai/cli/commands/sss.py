@@ -179,6 +179,75 @@ app = typer.Typer(
 )
 
 
+def _git_pull_preflight() -> None:
+    """Auto-sync with origin/main before sss scaffolds a new session.
+
+    Per the SSOT doctrine (Q4 = pull on sss only), session start is the
+    canonical sync boundary between Mac and VPS working copies. All error
+    paths are fail-soft so sss continues to work offline, in non-git
+    workspaces, and when conflicts exist.
+
+    Guards (in order):
+      1. TRINITY_SKIP_PULL=1 env → silent skip (operator opt-out)
+      2. No `.git/` in cwd or ancestors → silent skip (not a git clone)
+      3. git binary missing → one-line note · skip
+      4. fetch fails (network / timeout) → warning · skip pull
+      5. pull --ff-only fails (conflict) → warning · proceed to scaffold
+
+    Output goes to stderr (matches the existing typer.echo pattern in
+    this file) so it does not pollute structured stdout. Timeout 5s.
+    """
+    import os
+    import subprocess
+
+    if os.environ.get("TRINITY_SKIP_PULL") == "1":
+        return
+
+    cwd = Path.cwd()
+    if not any((p / ".git").exists() for p in [cwd, *cwd.parents]):
+        return
+
+    try:
+        fetch = subprocess.run(
+            ["git", "fetch", "origin", "main"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if fetch.returncode != 0:
+            typer.echo(
+                f"[sss] git fetch skipped (offline?): "
+                f"{fetch.stderr.strip()[:200]}",
+                err=True,
+            )
+            return
+
+        pull = subprocess.run(
+            ["git", "pull", "--ff-only", "origin", "main"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if pull.returncode == 0:
+            out = pull.stdout.strip()
+            if "Already up to date" in out:
+                typer.echo("[sss] origin/main: already up to date", err=True)
+            else:
+                last = out.splitlines()[-1] if out else "fast-forwarded"
+                typer.echo(f"[sss] pulled origin/main: {last[:200]}", err=True)
+        else:
+            typer.echo(
+                f"[sss] git pull --ff-only failed (conflict? "
+                f"proceeding): {pull.stderr.strip()[:200]}",
+                err=True,
+            )
+    except subprocess.TimeoutExpired:
+        typer.echo("[sss] git preflight timeout (5s) · proceeding", err=True)
+    except FileNotFoundError:
+        typer.echo("[sss] git binary missing · skipped", err=True)
+    except Exception as e:
+        typer.echo(
+            f"[sss] git preflight error ({type(e).__name__}) · proceeding",
+            err=True,
+        )
+
+
 @app.callback(invoke_without_command=True)
 def callback(
     ctx: typer.Context,
@@ -224,6 +293,11 @@ def callback(
             ritual="sss",
             session_id=f"pending:{task}",
         )
+    # SSOT preflight (Q4 doctrine) — sync with origin/main before
+    # scaffolding. All git error paths are fail-soft; sss must keep
+    # working offline / in non-git workspaces / under conflicts.
+    _git_pull_preflight()
+
     # Lazy-import to avoid any import-time cycle with session.py
     from . import session as session_cmd
 

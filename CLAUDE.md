@@ -84,6 +84,28 @@ lock-step enforcement that catches drift.
 
 Detailed contract: [`docs/ai_entry/SHORT_CODES.md`](docs/ai_entry/SHORT_CODES.md)
 
+## SSOT auto-pull on `sss`
+
+When this checkout is a git clone (`.git/` is reachable in the cwd's
+ancestors), `ai sss` automatically runs `git fetch origin main` followed
+by `git pull --ff-only origin main` **before** scaffolding the new
+session. This implements the SSOT doctrine that `github.com/postmunnet/
+trinity-protocol` is the canonical truth, with `sss` as the boundary
+where Mac and VPS working copies sync.
+
+All git failure modes are fail-soft: offline, conflict, missing git
+binary, timeout (5s), or running outside a git clone — sss prints a
+brief stderr note and proceeds to scaffold anyway. The other rituals
+(`vvv`, `nnn`, `gogogo`, `ddd`, `rrr`, `close`) do **not** pull.
+
+Operator opt-out: set `TRINITY_SKIP_PULL=1` to disable the preflight
+for a single invocation. Useful when you want to deliberately work on
+the local commit without auto-syncing (e.g. WIP investigation).
+
+See `.ai/cli/commands/sss.py:_git_pull_preflight` for the implementation
+and `.ai/cli/tests/test_sss_auto_pull_preflight.py` for the eight test
+cases covering every guard path.
+
 ## CLI Command Rule
 
 **Do not guess Trinity commands from ritual names.** The ritual language (`sss / vvv / nnn / gogogo / ddd / rrr / lll / close`) maps to executable commands via [`.ai/cli/COMMAND_MANIFEST.yaml`](.ai/cli/COMMAND_MANIFEST.yaml). When in doubt, consult the manifest or run `bash .ai/cli/ai doctor commands`.
