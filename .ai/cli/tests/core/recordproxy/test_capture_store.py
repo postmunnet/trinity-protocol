@@ -5,7 +5,10 @@ import sqlite3
 
 import pytest
 
-from cli.core.recordproxy.capture_store import CaptureStore
+from cli.core.recordproxy.capture_store import (
+    CaptureStore,
+    SessionsContainerError,
+)
 from cli.core.recordproxy.schemas import (
     CAPTURE_SCHEMA_VERSION,
     CAPTURE_ITEM_SCHEMA_VERSION,
@@ -129,4 +132,41 @@ def test_no_tmp_files_remain_after_blob_write(tmp_path):
     blobs_dir = tmp_path / "CAPTURE" / "blobs" / "sha256"
     leftover = [p for p in blobs_dir.rglob(".tmp_*")]
     assert leftover == []
+    store.close()
+
+
+def _make_sessions_container(tmp_path):
+    """Build the `.ai/sessions/` container layout (active/ + archive/)."""
+    sessions = tmp_path / ".ai" / "sessions"
+    (sessions / "active").mkdir(parents=True)
+    (sessions / "archive").mkdir(parents=True)
+    return sessions
+
+
+def test_rejects_sessions_container_by_active_archive_children(tmp_path):
+    """A1: session_dir with active/+archive/ children is the container,
+    not a capsule — construction must raise and write no CAPTURE/."""
+    sessions = _make_sessions_container(tmp_path)
+    with pytest.raises(SessionsContainerError):
+        CaptureStore(sessions)
+    assert not (sessions / "CAPTURE").exists()
+
+
+def test_rejects_sessions_container_by_basename(tmp_path):
+    """A1: a bare directory named `sessions` is rejected on the
+    secondary name signal even without the active/archive children."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    with pytest.raises(SessionsContainerError):
+        CaptureStore(sessions)
+    assert not (sessions / "CAPTURE").exists()
+
+
+def test_real_capsule_still_writes(tmp_path):
+    """A2: a normal session capsule (named, no active/+archive/ children)
+    is accepted and the CAPTURE store is created as before."""
+    capsule = tmp_path / ".ai" / "sessions" / "0001_2026-06-02_feat-x"
+    capsule.mkdir(parents=True)
+    store = CaptureStore(capsule)
+    assert (capsule / "CAPTURE" / "capture.sqlite").exists()
     store.close()

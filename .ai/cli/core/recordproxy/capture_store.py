@@ -20,6 +20,14 @@ from .schemas import (
     AUDIT_EVENT_SCHEMA_VERSION,
 )
 
+# Canonical sessions-container guard lives in core.session_resolver so the
+# resolvers and this capture store share one detector (no drift). Re-exported
+# below for back-compat with callers importing them from this module.
+from ..session_resolver import (
+    SessionsContainerError,
+    is_sessions_container as _is_sessions_container,
+)
+
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS captures (
   capture_id TEXT PRIMARY KEY,
@@ -100,6 +108,14 @@ class CaptureStore:
 
     def __init__(self, session_dir):
         self.session_dir = Path(session_dir)
+        # Guard before any mkdir: refuse to root inside the sessions
+        # container, which would orphan CAPTURE/ at .ai/sessions/ root.
+        if _is_sessions_container(self.session_dir):
+            raise SessionsContainerError(
+                f"refusing to create a capture store at the sessions "
+                f"container {self.session_dir!s}; session_dir must be an "
+                f"individual session capsule, not .ai/sessions/ itself"
+            )
         self.capture_root = self.session_dir / "CAPTURE"
         self.capture_root.mkdir(parents=True, exist_ok=True)
         self.blobs_root = self.capture_root / "blobs" / "sha256"

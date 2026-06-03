@@ -443,19 +443,12 @@ def _nnn_inner(
 
 
 def _resolve_session(config) -> Path:
-    state_mgr = StateManager(config)
-    status = state_mgr.load_status()
-    cur = status.get("current_session")
-    if not cur:
-        console.print(
-            "[red]No active session. Run `ai session new <task>` first.[/red]"
-        )
-        raise typer.Exit(2)
-    p = Path(cur)
-    if not p.exists():
-        console.print(f"[red]Session path missing: {p}[/red]")
-        raise typer.Exit(2)
-    return p
+    # Thin wrapper over the shared canonical resolver (consolidates the
+    # 6 former duplicates; the shared one also rejects the sessions
+    # container so a drifted current_session pointer cannot leak the root).
+    from ..core.session_resolver import resolve_current_session
+
+    return resolve_current_session(config)
 
 
 def _resolve_with_override(config, session_override: Optional[str]) -> Path:
