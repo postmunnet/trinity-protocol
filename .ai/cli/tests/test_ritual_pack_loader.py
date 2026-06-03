@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any, Dict
 
@@ -13,6 +14,7 @@ from cli.core.ritual_pack_loader import (
     RitualPackError,
     SchemaValidationError,
     StateTransitionError,
+    _self_heal_pack_files,
     assert_transition_allowed,
     check_transition_allowed,
     load_pack,
@@ -254,3 +256,89 @@ def test_all_seven_real_rituals_pass_full_pipeline():
         artifacts = required_artifacts_for_check(pack)
         assert events, f"{ritual} declares no audit events"
         assert artifacts is not None  # may be empty for some rituals
+
+
+# ───────────────────────── self-heal drift recovery ─────────────────────────
+
+
+def _init_git_pack(tmp_path: Path, ritual: str) -> tuple[Path, Path]:
+    """Initialize a tmp git repo with a seeded pack committed at HEAD.
+
+    Returns (repo_root, rituals_root) so the test can drift+restore in place.
+    """
+    rituals_root = tmp_path / ".ai" / "rituals"
+    rituals_root.mkdir(parents=True)
+    _seed_minimal_pack(rituals_root, ritual)
+    # Initialize git and commit the pristine pack
+    for cmd in (
+        ["git", "init", "-q", "-b", "main"],
+        ["git", "-C", str(tmp_path), "config", "user.email", "t@t"],
+        ["git", "-C", str(tmp_path), "config", "user.name", "t"],
+        ["git", "-C", str(tmp_path), "config", "commit.gpgsign", "false"],
+        ["git", "-C", str(tmp_path), "add", "."],
+        ["git", "-C", str(tmp_path), "commit", "-q", "-m", "seed"],
+    ):
+        subprocess.check_call(cmd, cwd=tmp_path)
+    return tmp_path, rituals_root
+
+
+def test_self_heal_skips_when_not_in_git(tmp_path: Path):
+    """No git repo → no restore, no exception."""
+    rituals_root = tmp_path / ".ai" / "rituals"
+    rituals_root.mkdir(parents=True)
+    _seed_minimal_pack(rituals_root, "vvv")
+    restored = _self_heal_pack_files(rituals_root / "vvv")
+    assert restored == []
+
+
+def test_self_heal_skips_when_clean(tmp_path: Path):
+    """Pack matches HEAD → no restore."""
+    _init_git_pack(tmp_path, "vvv")
+    restored = _self_heal_pack_files(tmp_path / ".ai" / "rituals" / "vvv")
+    assert restored == []
+
+
+def test_self_heal_restores_drifted_contract(tmp_path: Path):
+    """Mutating a committed pack file → self-heal restores from HEAD."""
+    _, rituals_root = _init_git_pack(tmp_path, "vvv")
+    contract_path = rituals_root / "vvv" / "ritual.contract.json"
+    pristine = contract_path.read_text(encoding="utf-8")
+    # Simulate drift: rewrite allowed_current_states to wrong value
+    data = json.loads(pristine)
+    data["allowed_current_states"] = ["SANDBOX"]
+    contract_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    assert contract_path.read_text(encoding="utf-8") != pristine
+
+    restored = _self_heal_pack_files(rituals_root / "vvv")
+    assert restored == ["ritual.contract.json"]
+    assert contract_path.read_text(encoding="utf-8") == pristine
+
+
+def test_self_heal_skips_untracked_files(tmp_path: Path):
+    """Newly-added (uncommitted) file should not crash self-heal."""
+    _, rituals_root = _init_git_pack(tmp_path, "vvv")
+    # Add a new ritual without committing
+    new_pack = rituals_root / "brand_new"
+    new_pack.mkdir()
+    (new_pack / "ritual.contract.json").write_text("{}")
+    (new_pack / "context.schema.json").write_text("{}")
+    (new_pack / "check.template.json").write_text("{}")
+    (new_pack / "write.template.md").write_text("# new\n")
+    restored = _self_heal_pack_files(new_pack)
+    assert restored == []  # files not in HEAD — silently skipped
+
+
+def test_load_pack_calls_self_heal_before_parse(tmp_path: Path):
+    """load_pack must call self-heal so drift never reaches the parser."""
+    _, rituals_root = _init_git_pack(tmp_path, "vvv")
+    contract_path = rituals_root / "vvv" / "ritual.contract.json"
+    data = json.loads(contract_path.read_text(encoding="utf-8"))
+    data["allowed_current_states"] = ["SANDBOX"]  # drift
+    contract_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    pack = load_pack("vvv", rituals_root=rituals_root)
+    # After load_pack, contract should reflect HEAD (READY per seed), not SANDBOX
+    assert pack.contract["allowed_current_states"] == ["READY"]
+    # And the file on disk is also restored
+    disk = json.loads(contract_path.read_text(encoding="utf-8"))
+    assert disk["allowed_current_states"] == ["READY"]

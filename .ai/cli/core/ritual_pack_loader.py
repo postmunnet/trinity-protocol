@@ -27,9 +27,13 @@ Public API:
 from __future__ import annotations
 
 import json
+import logging
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+_log = logging.getLogger(__name__)
 
 
 class RitualPackError(Exception):
@@ -58,6 +62,82 @@ _DEFAULT_RITUALS_ROOT = Path(".ai/rituals")
 _DEFAULT_SCHEMAS_ROOT = Path(".ai/schemas")
 
 
+def _find_git_root(start: Path) -> Optional[Path]:
+    """Walk up from `start` (after resolving symlinks) to find the git root."""
+    try:
+        real = start.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    for p in [real, *real.parents]:
+        if (p / ".git").exists():
+            return p
+    return None
+
+
+def _self_heal_pack_files(pack_dir: Path) -> List[str]:
+    """Restore pack files that drifted from git HEAD.
+
+    `.ai/rituals/**` is in `forbidden_paths` for Trinity rituals, but external
+    tooling (sibling CLIs, editor plugins, sync scripts) occasionally writes
+    to these files anyway — typically leaving `allowed_current_states` in a
+    wrong state. Detect via `git diff HEAD` and restore from the committed
+    blob. No-op when:
+      - pack_dir is not inside a git repo
+      - a pack file is untracked (new ritual not yet committed)
+      - the file is already clean
+
+    Returns the list of file names that were restored (empty on no-op).
+    Logs a single WARNING when one or more files are restored.
+
+    Trade-off (accepted, session ritual-pack-self-heal-land): an operator who
+    deliberately edits a tracked ritual pack file in the working tree will see
+    it reverted to HEAD on the next load — commit the edit first.
+    """
+    repo_root = _find_git_root(pack_dir)
+    if repo_root is None:
+        return []
+    try:
+        pack_real = pack_dir.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return []
+    restored: List[str] = []
+    for fname in _PACK_FILES:
+        fpath = pack_real / fname
+        if not fpath.is_file():
+            continue
+        try:
+            rel = fpath.relative_to(repo_root)
+        except ValueError:
+            continue
+        try:
+            head_bytes = subprocess.check_output(
+                ["git", "-C", str(repo_root), "show", f"HEAD:{rel.as_posix()}"],
+                stderr=subprocess.DEVNULL,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            # File not in HEAD (new ritual / uncommitted) or git missing — skip
+            continue
+        try:
+            current = fpath.read_bytes()
+        except OSError:
+            continue
+        if current != head_bytes:
+            try:
+                fpath.write_bytes(head_bytes)
+                restored.append(fname)
+            except OSError as e:
+                _log.warning(
+                    "ritual_pack_loader: drift in %s/%s could not be restored: %s",
+                    pack_real.name, fname, e,
+                )
+    if restored:
+        _log.warning(
+            "ritual_pack_loader: drift detected in pack %r — restored from git HEAD: %s",
+            pack_real.name, ", ".join(restored),
+        )
+    return restored
+
+
 @dataclass
 class RitualPack:
     ritual: str
@@ -81,6 +161,11 @@ def load_pack(
     pack_dir = Path(rituals_root) / ritual
     if not pack_dir.is_dir():
         raise PackNotFoundError(f"ritual pack directory not found: {pack_dir}")
+    # Defensive: external writers (sibling CLIs, editor plugins, sync scripts)
+    # occasionally mutate `.ai/rituals/<r>/{ritual.contract,check.template}.json`
+    # despite the path being in forbidden_paths. Restore from git HEAD before
+    # parsing so a downstream State/Transition check sees the canonical pack.
+    _self_heal_pack_files(pack_dir)
     files: Dict[str, Path] = {}
     for fname in _PACK_FILES:
         fpath = pack_dir / fname
