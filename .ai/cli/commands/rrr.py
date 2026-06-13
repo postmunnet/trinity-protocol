@@ -116,6 +116,19 @@ def callback(
         "normally if the agent fails or times out. Skipped under --dry-run "
         "and --retroactive.",
     ),
+    accept_debt: bool = typer.Option(
+        False,
+        "--accept-debt",
+        help="(Q24.10 step 3) Waive blocking session debt (e.g. unconfirmed "
+        "goal answers) so RETRO->DONE may fire. Requires --reason. Recorded "
+        "as an explicit operator waiver (waiver_source=explicit_cli_flag) — "
+        "NOT proof of human authority.",
+    ),
+    reason: Optional[str] = typer.Option(
+        None,
+        "--reason",
+        help="Reason for --accept-debt (required when waiving debt).",
+    ),
 ):
     """Run the rrr terminal gate."""
     if ctx.invoked_subcommand is not None:
@@ -129,6 +142,8 @@ def callback(
         session_override=session,
         hmac_envelope_file=hmac_envelope_file,
         with_lessons=with_lessons,
+        accept_debt=accept_debt,
+        reason=reason,
     )
     raise typer.Exit(code=code)
 
@@ -142,6 +157,8 @@ def _run(
     session_override: Optional[str] = None,
     hmac_envelope_file: Optional[Path] = None,
     with_lessons: bool = False,
+    accept_debt: bool = False,
+    reason: Optional[str] = None,
 ) -> int:
     from ..core.recordproxy import capture
     loader = SSOTLoader(Path.cwd())
@@ -185,6 +202,8 @@ def _run(
             session_override=session_override,
             hmac_envelope_file=hmac_envelope_file,
             with_lessons=with_lessons,
+            accept_debt=accept_debt,
+            reason=reason,
             config=config,
             project_root=project_root,
             session_path=session_path,
@@ -243,6 +262,8 @@ def _rrr_inner(
     session_override: Optional[str],
     hmac_envelope_file: Optional[Path],
     with_lessons: bool,
+    accept_debt: bool = False,
+    reason: Optional[str] = None,
     config,
     project_root,
     session_path,
@@ -344,7 +365,25 @@ def _rrr_inner(
     acceptance_yaml = session_path / "THINK" / "03_ACCEPTANCE.yaml"
     acc_report: Optional[AcceptanceReport] = None
     if acceptance_yaml.exists():
-        items = load_acceptance(acceptance_yaml)
+        from ..core.acceptance import AcceptanceYamlError
+
+        try:
+            items = load_acceptance(acceptance_yaml)
+        except AcceptanceYamlError as exc:
+            # retro-0072: a malformed acceptance file used to traceback,
+            # leaving no rrr audit trail — and `close --force` could then
+            # archive the session with zero evidence. Fail clean + loud.
+            loop.chain.append(
+                "rrr.failed",
+                {
+                    "session_id": sid,
+                    "reason": "acceptance_yaml_invalid",
+                    "detail": str(exc),
+                    "decided_by": "kernel",
+                },
+            )
+            console.print(f"[red]rrr failed — {exc}[/red]")
+            raise typer.Exit(4)
         acc_report = run_all(items, cwd=project_root)
         acc_report.yaml_path = acceptance_yaml
         _print_acceptance(acc_report)
@@ -497,11 +536,58 @@ def _rrr_inner(
         )
         return 1
 
-    # 9. finalize: fire DEPLOYED->RETRO if needed, append rrr.completed,
-    # fire RETRO->DONE. R14 retroactive mode skips state mutation entirely
-    # — the goal is to stitch a *past* session into the audit chain
-    # without changing the kernel's current_session or graph_state.
-    if not retroactive and loop.current() == "DEPLOYED":
+    # Q24.10 step 3 — debt gate. Acceptance/forbidden have passed; before
+    # firing RETRO->DONE, refuse on *blocking* session debt (currently the
+    # single source: unconfirmed goal answers from goal_contract_signal.json)
+    # unless the operator explicitly waives it. Skipped for retroactive
+    # backfills. Legacy sessions without the signal carry no debt (compat).
+    debt_waiver = None
+    if not retroactive:
+        from ..core import debt as debt_mod
+        gate = debt_mod.evaluate_debt_gate(session_path, accept_debt, reason)
+        if gate["action"] == "block":
+            loop.chain.append("rrr.blocked_on_debt", {
+                "session_id": sid,
+                "decided_by": "kernel",
+                "debts": gate["debts"],
+            })
+            console.print(Panel(
+                "[red]gate FAIL — blocking debt; refusing RETRO->DONE[/red]\n  "
+                + "\n  ".join(
+                    f"{d['type']}: {d.get('questions', '')}" for d in gate["debts"]
+                )
+                + "\n\nResolve it (e.g. `ai vvv --confirm 1,2,...`) or waive "
+                'with `ai rrr --accept-debt --reason "..."`.',
+                title="🔴 ai rrr — debt",
+                border_style="red",
+            ))
+            return 1
+        if gate["action"] == "need_reason":
+            console.print("[red]--accept-debt requires --reason.[/red]")
+            return 2
+        if gate["action"] == "waive":
+            debt_waiver = gate["waiver"]
+            loop.chain.append("closed_with_debt", {
+                "session_id": sid,
+                "decided_by": "operator_waiver",
+                "debts": gate["debts"],
+                "waiver": debt_waiver,
+            })
+            console.print(Panel(
+                f"[yellow]debt waived (explicit operator waiver)[/yellow]\n  "
+                f"reason: {debt_waiver['reason']}\n  "
+                f"debts: {[d['type'] for d in gate['debts']]}",
+                title="🟡 ai rrr — debt waived",
+                border_style="yellow",
+            ))
+
+    # 9. finalize: fire <closable-state>->RETRO if needed, append
+    # rrr.completed, fire RETRO->DONE. VERIFIED is the non-deploy closure
+    # path; DEPLOYED is the deploy-bound closure path. R14 retroactive mode
+    # skips state mutation entirely — the goal is to stitch a *past*
+    # session into the audit chain without changing the kernel's
+    # current_session or graph_state.
+    if not retroactive and loop.current() in {"VERIFIED", "DEPLOYED"}:
         loop.fire(
             "rrr",
             decided_by="kernel",
@@ -932,6 +1018,13 @@ def _render_retro_envelope(
     artifact_paths = _enumerate_artifact_paths(session_path)
     indexed_retros = _enumerate_indexed_retros(project_root, sid)
 
+    # Q24.10 step 3 — machine-readable debt summary (C6/C10). Collected at
+    # render time from .state signals; the waiver (if any) rides the
+    # closed_with_debt audit row, not the envelope (it is decided after
+    # render). debts == [] for a clean / legacy session.
+    from ..core import debt as _debt
+    debt_block = _debt.debt_summary(session_path)
+
     # memory_index_result is captured later in the rrr pipeline
     # (after _index_memory_cli runs). At envelope-render time it is
     # null; the corresponding rrr.completed audit row carries the
@@ -960,6 +1053,7 @@ def _render_retro_envelope(
         "indexed_retros": indexed_retros,
         "artifact_paths": artifact_paths,
         "memory_index_result": memory_index_result,
+        "debt": debt_block,
     }
 
     # Canonical YAML serialization (sort_keys=True for determinism).
