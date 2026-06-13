@@ -24,6 +24,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from ..core.audit import get_chain_for_project
+from ..core import artifact_version
 from ..core.loop import Loop
 from ..core.next_action import compute as compute_next, render_one_line
 from ..core.recordproxy import capture
@@ -63,6 +64,28 @@ def callback(
     show: bool = typer.Option(
         False, "--show", help="Print 5 questions and exit (no writes)"
     ),
+    amend: bool = typer.Option(
+        False,
+        "--amend",
+        help="Amend the goal contract in-session (creates goal_contract.v(N+1), "
+        "never mutates v1). Pair with --answer N=... + --reason. Amended "
+        "answers reset to agent_draft/unconfirmed.",
+    ),
+    confirm: Optional[str] = typer.Option(
+        None,
+        "--confirm",
+        help="Mark selected questions human-confirmed, e.g. --confirm 1,2,4. "
+        "Creates a new goal_contract version (answer_source is contract state).",
+    ),
+    history: bool = typer.Option(
+        False,
+        "--history",
+        help="Print goal_contract version history + amendment records "
+        "(read-only).",
+    ),
+    reason: Optional[str] = typer.Option(
+        None, "--reason", help="Reason for --amend (required when amending)."
+    ),
     hmac_envelope_file: Optional[Path] = typer.Option(
         None,
         "--hmac-envelope-file",
@@ -81,6 +104,15 @@ def callback(
     """Run vvv ritual: 5 questions, write THINK/01_PROMPT.md + vvv_pass."""
     if ctx.invoked_subcommand is not None:
         return
+    if history:
+        _run_history(session)
+        return
+    if confirm is not None:
+        _run_confirm(confirm, session)
+        return
+    if amend:
+        _run_amend(answer or [], answers_file, reason, session)
+        return
     _run(answer or [], answers_file, show, hmac_envelope_file, session)
 
 
@@ -91,13 +123,18 @@ def _run(
     hmac_envelope_file: Optional[Path] = None,
     session_override: Optional[str] = None,
 ) -> None:
-    loader = SSOTLoader(Path.cwd())
-    config = loader.load()
-    session_path = _resolve_with_override(config, session_override)
-
+    # Prompt mode (--show) is pure static text — the 5 questions never
+    # depend on SSOT or an active session. Check it BEFORE loading config
+    # so adapters can render the questions from any cwd, with no session
+    # open, and without an audit side effect (two-phase adapter contract,
+    # 2026-06-12). Submission below still requires both.
     if show_only:
         _print_questions()
         return
+
+    loader = SSOTLoader(Path.cwd())
+    config = loader.load()
+    session_path = _resolve_with_override(config, session_override)
 
     if hmac_envelope_file is not None:
         from ..core.audit import get_chain_for_project
@@ -212,6 +249,20 @@ def _run_inner(
     prompt_path.write_text(prompt_md, encoding="utf-8")
     cap.output("01_PROMPT.md", prompt_md)
 
+    # Q24.10 step 2 — materialise the goal contract as a versioned, machine-
+    # readable artifact (v1) the first time vvv passes. answer_source defaults
+    # are conservative: every answer is agent_draft / human_confirmed:false
+    # until an explicit `vvv --confirm`. Idempotent: a re-run that finds v1
+    # already present refreshes 01_PROMPT.md only (never mutates v1).
+    if not (session_path / ".state" / "goal_contract.v1.json").exists():
+        contract = _build_goal_contract(answers, session_path.name, version=1)
+        artifact_version.write_version(session_path, "goal_contract", contract, 1)
+        (session_path / "THINK" / "01_PROMPT.v1.md").write_text(
+            prompt_md, encoding="utf-8"
+        )
+        _write_goal_signal(session_path)
+        cap.output("goal_contract.v1.json", contract)
+
     # Phase 2.3 — surface past incidents from the Knowledge Brain.
     # Best-effort: a memory-cli failure does not block vvv. Hits are
     # informational warnings; the human still decides whether to
@@ -322,6 +373,250 @@ def _resolve_with_override(config, session_override: Optional[str]) -> Path:
             f"({Path(cur).name}) → using explicit session {explicit.name}[/yellow]"
         )
     return explicit
+
+
+# ───────────────────── Q24.10 step 2: goal-contract versioning ─────────────────────
+# vvv is the SEMANTIC owner here; artifact_version.py is the storage layer.
+
+def _build_goal_contract(
+    answers: Dict[int, str], session_id: str, version: int
+) -> Dict:
+    """Structured goal contract with per-question answer_source.
+
+    Conservative default: every answer is agent_draft / human_confirmed:false
+    (the kernel cannot know whether a human typed --answer or an agent drafted
+    it, so it must assume unconfirmed until an explicit --confirm).
+    """
+    questions = {}
+    for i, (cat, _q) in enumerate(QUESTIONS, start=1):
+        questions[f"q{i}"] = {
+            "category": cat,
+            "answer": answers.get(i, ""),
+            "answered_by": "agent_draft",
+            "human_confirmed": False,
+            "confirmed_at": None,
+        }
+    return {"session": session_id, "version": version, "questions": questions}
+
+
+def _unconfirmed_questions(contract: Dict) -> List[str]:
+    """Return question ids whose answer is not human-confirmed."""
+    return [
+        qid
+        for qid, q in (contract.get("questions") or {}).items()
+        if not q.get("human_confirmed")
+    ]
+
+
+def _write_goal_signal(session_path: Path) -> Dict:
+    """Materialise the machine-readable unconfirmed-answer signal in .state.
+
+    This is the source of truth step 3 / aaa / rrr will consume — they must
+    NOT have to regex markdown to know whether the goal is fully confirmed.
+    """
+    contract = artifact_version.resolve_latest(session_path, "goal_contract")
+    unconfirmed = _unconfirmed_questions(contract)
+    signal = {
+        "goal_contract_version": artifact_version.active_version(
+            session_path, "goal_contract"
+        ),
+        "has_unconfirmed_answers": bool(unconfirmed),
+        "unconfirmed_questions": unconfirmed,
+    }
+    (session_path / ".state" / "goal_contract_signal.json").write_text(
+        json.dumps(signal, indent=2), encoding="utf-8"
+    )
+    return signal
+
+
+def _parse_question_ids(spec: str) -> List[str]:
+    """Parse '1,2,4' or 'q1,q2' → ['q1','q2','q4']."""
+    out = []
+    for tok in spec.replace(" ", "").split(","):
+        if not tok:
+            continue
+        tok = tok if tok.startswith("q") else f"q{tok}"
+        out.append(tok)
+    return out
+
+
+def _run_confirm(confirm_spec: str, session_override: Optional[str]) -> None:
+    """ai vvv --confirm 1,2 — mark selected questions human-confirmed.
+
+    Confirmation is part of the contract state, so it produces a new
+    immutable version (v1 is never mutated).
+    """
+    loader = SSOTLoader(Path.cwd())
+    config = loader.load()
+    session_path = _resolve_with_override(config, session_override)
+    chain = get_chain_for_project(config.project_root)
+
+    try:
+        base = artifact_version.resolve_latest(session_path, "goal_contract")
+    except FileNotFoundError:
+        console.print("[red]No goal contract yet — run `ai vvv` first.[/red]")
+        raise typer.Exit(2)
+
+    ids = _parse_question_ids(confirm_spec)
+    valid = set(base.get("questions") or {})
+    bad = [q for q in ids if q not in valid]
+    if bad:
+        console.print(f"[red]unknown question(s): {bad} (have {sorted(valid)})[/red]")
+        raise typer.Exit(2)
+
+    from_v = artifact_version.active_version(session_path, "goal_contract")
+    to_v = from_v + 1
+    new = json.loads(json.dumps(base))  # deep copy
+    new["version"] = to_v
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    for q in ids:
+        new["questions"][q]["answered_by"] = "human"
+        new["questions"][q]["human_confirmed"] = True
+        new["questions"][q]["confirmed_at"] = now
+
+    artifact_version.write_version(session_path, "goal_contract", new, to_v)
+    artifact_version.write_amendment_record(
+        session_path, "goal_contract", from_v, to_v,
+        f"confirm {','.join(ids)}", [f"confirm_{q}" for q in ids],
+    )
+    signal = _write_goal_signal(session_path)
+    chain.append("goal_contract_amended", {
+        "session_id": session_path.name, "from_version": from_v,
+        "to_version": to_v, "changes": [f"confirm_{q}" for q in ids],
+        "decided_by": "human",
+    })
+    chain.append("active_goal_contract_changed", {
+        "session_id": session_path.name, "active_version": to_v,
+        "has_unconfirmed_answers": signal["has_unconfirmed_answers"],
+        "decided_by": "kernel",
+    })
+    console.print(Panel(
+        f"confirmed {', '.join(ids)} (goal_contract v{from_v} → v{to_v})\n"
+        f"  has_unconfirmed_answers: {signal['has_unconfirmed_answers']}\n"
+        f"  unconfirmed: {signal['unconfirmed_questions'] or '—'}",
+        title="✅ vvv --confirm", border_style="green",
+    ))
+
+
+def _run_amend(
+    answer_flags: List[str],
+    answers_file: Optional[Path],
+    reason: Optional[str],
+    session_override: Optional[str],
+) -> None:
+    """ai vvv --amend --answer N=... --reason ... — amend the goal contract.
+
+    vvv owns goal authority, so a goal-level change here is LEGAL (unlike
+    nnn --amend which rejects it). Amended answers reset to agent_draft /
+    unconfirmed. Creates goal_contract.v(N+1); v1 stays immutable.
+    """
+    loader = SSOTLoader(Path.cwd())
+    config = loader.load()
+    session_path = _resolve_with_override(config, session_override)
+    chain = get_chain_for_project(config.project_root)
+
+    reason = (reason or "").strip()
+    if not reason:
+        console.print("[red]--amend requires --reason.[/red]")
+        raise typer.Exit(2)
+
+    changes = _parse_answers(answer_flags, answers_file)
+    changes = {i: v for i, v in changes.items() if v.strip()}
+    if not changes:
+        console.print(
+            "[red]--amend requires at least one --answer N=text to change.[/red]"
+        )
+        raise typer.Exit(2)
+
+    try:
+        base = artifact_version.resolve_latest(session_path, "goal_contract")
+    except FileNotFoundError:
+        console.print("[red]No goal contract to amend — run `ai vvv` first.[/red]")
+        raise typer.Exit(2)
+
+    from_v = artifact_version.active_version(session_path, "goal_contract")
+    to_v = from_v + 1
+    changed_questions = [f"q{i}" for i in sorted(changes)]
+
+    chain.append("goal_amend_proposed", {
+        "session_id": session_path.name, "from_version": from_v,
+        "reason": reason, "changed_questions": changed_questions,
+        "decided_by": "kernel",
+    })
+
+    new = json.loads(json.dumps(base))  # deep copy
+    new["version"] = to_v
+    for i, text in changes.items():
+        qid = f"q{i}"
+        # amended answers revert to unconfirmed (must be re-confirmed)
+        new["questions"][qid]["answer"] = text
+        new["questions"][qid]["answered_by"] = "agent_draft"
+        new["questions"][qid]["human_confirmed"] = False
+        new["questions"][qid]["confirmed_at"] = None
+
+    artifact_version.write_version(session_path, "goal_contract", new, to_v)
+    rfile, _rec = artifact_version.write_amendment_record(
+        session_path, "goal_contract", from_v, to_v, reason, changed_questions,
+    )
+    # refresh 01_PROMPT.md latest view (historical 01_PROMPT.v1.md untouched)
+    answers_for_md = {
+        i: new["questions"][f"q{i}"]["answer"] for i in range(1, 6)
+    }
+    (session_path / "THINK" / "01_PROMPT.md").write_text(
+        _render_prompt_md(answers_for_md, session_path.name), encoding="utf-8"
+    )
+    signal = _write_goal_signal(session_path)
+    chain.append("goal_contract_amended", {
+        "session_id": session_path.name, "from_version": from_v,
+        "to_version": to_v, "reason": reason, "changes": changed_questions,
+        "decided_by": "kernel",
+    })
+    chain.append("active_goal_contract_changed", {
+        "session_id": session_path.name, "active_version": to_v,
+        "has_unconfirmed_answers": signal["has_unconfirmed_answers"],
+        "decided_by": "kernel",
+    })
+    console.print(Panel(
+        f"goal contract amended v{from_v} → v{to_v}\n"
+        f"  changed: {', '.join(changed_questions)}\n"
+        f"  reason: {reason}\n"
+        f"  has_unconfirmed_answers: {signal['has_unconfirmed_answers']} "
+        f"{signal['unconfirmed_questions']}\n"
+        f"  record: {rfile.relative_to(config.project_root)}",
+        title="✅ vvv --amend", border_style="green",
+    ))
+
+
+def _run_history(session_override: Optional[str]) -> None:
+    """ai vvv --history — goal_contract version history (read-only)."""
+    from rich.table import Table
+
+    loader = SSOTLoader(Path.cwd())
+    config = loader.load()
+    session_path = _resolve_with_override(config, session_override)
+
+    versions = artifact_version.list_versions(session_path, "goal_contract")
+    if not versions:
+        console.print("[yellow]no goal contract yet — run `ai vvv` first.[/yellow]")
+        return
+    active = artifact_version.active_version(session_path, "goal_contract")
+    records = {
+        r["to_version"]: r
+        for r in artifact_version.list_amendment_records(session_path, "goal_contract")
+    }
+    table = Table(show_header=True, header_style="cyan", title="goal_contract history")
+    table.add_column("version")
+    table.add_column("origin")
+    table.add_column("changes")
+    table.add_column("reason")
+    for v in versions:
+        rec = records.get(v)
+        origin = f"amended from v{rec['from_version']}" if rec else "initial vvv"
+        changes = ", ".join(rec.get("changes", [])) if rec else "—"
+        reason = (rec.get("reason", "") if rec else "—") or "—"
+        marker = " ◀ active" if v == active else ""
+        table.add_row(f"v{v}{marker}", origin, changes, reason)
+    console.print(table)
 
 
 def _print_questions() -> None:
