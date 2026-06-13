@@ -38,6 +38,7 @@ from ..core.audit import get_chain_for_project
 from ..core.budget import Budget
 from ..core.loop import Loop
 from ..core.next_action import compute as compute_next, render_one_line
+from ..core import plan_version
 from ..core.ritual_pack_loader import (
     assert_transition_allowed,
     load_pack,
@@ -53,8 +54,20 @@ console = Console()
 @app.callback(invoke_without_command=True)
 def callback(
     ctx: typer.Context,
-    plan_envelope: Path = typer.Option(
-        ..., "--plan-envelope", help="Path to JSON plan envelope file"
+    plan_envelope: Optional[Path] = typer.Option(
+        None, "--plan-envelope", help="Path to JSON plan envelope file"
+    ),
+    amend: bool = typer.Option(
+        False,
+        "--amend",
+        help="Amend the current session's plan in-place (creates plan.v(N+1), "
+        "never mutates v1). Requires --plan-envelope <delta> with a `reason`.",
+    ),
+    history: bool = typer.Option(
+        False,
+        "--history",
+        help="Print the plan version history + amendment records for the "
+        "current session. Read-only.",
     ),
     scope_md: Optional[Path] = typer.Option(
         None, "--scope-md", help="Optional pre-rendered SCOPE markdown"
@@ -81,6 +94,23 @@ def callback(
     """Run nnn ritual: budget-check the envelope, write SCOPE/ACCEPTANCE/plan."""
     if ctx.invoked_subcommand is not None:
         return
+    if history:
+        _run_history(session)
+        return
+    if amend:
+        if plan_envelope is None:
+            console.print(
+                "[red]--amend requires --plan-envelope <delta.json> "
+                "(must contain a `reason`).[/red]"
+            )
+            raise typer.Exit(2)
+        _run_amend(plan_envelope, session)
+        return
+    if plan_envelope is None:
+        console.print(
+            "[red]Missing --plan-envelope <path>. (or use --amend / --history)[/red]"
+        )
+        raise typer.Exit(2)
     _run(plan_envelope, scope_md, acceptance_md, hmac_envelope_file, session)
 
 
@@ -384,10 +414,10 @@ def _nnn_inner(
             else "within_default"
         ),
     }
-    plan_state_path.write_text(
-        json.dumps(envelope_with_meta, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    # Initial nnn lands as plan.v1 (immutable) + active snapshot plan.json.
+    # write_plan_version writes plan.v1.json, plan.json (snapshot) and
+    # plan_meta.json so `nnn --amend` and gogogo's resolver have a baseline.
+    plan_version.write_plan_version(session_path, envelope_with_meta, 1)
     cap.output("plan.json", envelope_with_meta)
 
     nnn_marker = session_path / ".state" / "nnn_pass"
@@ -491,6 +521,165 @@ def _resolve_with_override(config, session_override: Optional[str]) -> Path:
             f"({Path(cur).name}) → using explicit session {explicit.name}[/yellow]"
         )
     return explicit
+
+
+def _run_amend(delta_path: Path, session_override: Optional[str]) -> None:
+    """ai nnn --amend — create plan.v(N+1) from a delta envelope.
+
+    Q24.10 invariants: v1 immutable · new version always · reason required ·
+    goal-level change rejected (→ vvv --amend) · audit plan_amended.
+    """
+    loader = SSOTLoader(Path.cwd())
+    config = loader.load()
+    session_path = _resolve_with_override(config, session_override)
+    chain = get_chain_for_project(config.project_root)
+
+    # resolve the delta path (R7 ergonomics: relative → project_root)
+    if not delta_path.is_absolute():
+        candidate = (config.project_root / delta_path).resolve()
+        if not delta_path.exists() and candidate.exists():
+            delta_path = candidate
+    delta = json.loads(delta_path.read_text(encoding="utf-8"))
+
+    reason = (delta.get("reason") or "").strip()
+    if not reason:
+        console.print(
+            "[red]amend delta must contain a non-empty `reason`.[/red]"
+        )
+        raise typer.Exit(2)
+
+    try:
+        base = plan_version.resolve_active_plan(session_path)
+    except FileNotFoundError:
+        console.print(
+            "[red]No existing plan to amend — run `ai nnn --plan-envelope` "
+            "first.[/red]"
+        )
+        raise typer.Exit(2)
+
+    # Invariant #4 — goal-level change is out of scope for nnn --amend.
+    if plan_version.is_goal_level_change(base, delta):
+        chain.append(
+            "plan_amend_rejected",
+            {
+                "session_id": session_path.name,
+                "reason": "goal-level change requires vvv --amend",
+                "recommended_next": "ai vvv --amend",
+                "decided_by": "kernel",
+            },
+        )
+        console.print(
+            "[red]amend rejected — goal-level change detected.[/red]\n"
+            "  the goal contract is owned by vvv, not nnn.\n"
+            "👉 next: ai vvv --amend"
+        )
+        raise typer.Exit(3)
+
+    from_version = plan_version.active_version(session_path)
+    to_version = from_version + 1
+
+    # New full version = delta, keeping the original goal (goal unchanged here).
+    new_plan = dict(delta)
+    new_plan["goal"] = base.get("goal")
+    new_plan["amended_from"] = from_version
+    new_plan["amended_at"] = plan_version._now()
+    new_plan.pop("reason", None)  # reason lives in the amendment record
+
+    changes = plan_version.diff_changes(base, new_plan)
+    plan_version.write_plan_version(session_path, new_plan, to_version)
+    rfile, record = plan_version.write_amendment_record(
+        session_path, from_version, to_version, reason, changes
+    )
+
+    # Refresh executable acceptance YAML so rrr sees the amended gates.
+    if isinstance(new_plan.get("acceptance"), list):
+        import yaml as _yaml
+
+        (session_path / "THINK" / "03_ACCEPTANCE.yaml").write_text(
+            _yaml.safe_dump(
+                {
+                    "session": session_path.name,
+                    "ritual": "rrr-input",
+                    "acceptance": new_plan["acceptance"],
+                },
+                sort_keys=False,
+                allow_unicode=True,
+            ),
+            encoding="utf-8",
+        )
+
+    # Human-readable delta under THINK/AMENDMENTS/.
+    adir = session_path / "THINK" / "AMENDMENTS"
+    adir.mkdir(parents=True, exist_ok=True)
+    (adir / f"{record['seq']:04d}_PLAN_DELTA.md").write_text(
+        f"# Plan amendment {record['seq']:04d}\n\n"
+        f"- from version: v{from_version}\n"
+        f"- to version: v{to_version}\n"
+        f"- changes: {', '.join(changes)}\n\n"
+        f"## Reason\n\n{reason}\n",
+        encoding="utf-8",
+    )
+
+    chain.append(
+        "plan_amended",
+        {
+            "session_id": session_path.name,
+            "from_version": from_version,
+            "to_version": to_version,
+            "reason": reason,
+            "changes": changes,
+            "decided_by": "kernel",
+            "requires_human": False,
+        },
+    )
+
+    console.print(
+        Panel(
+            f"plan amended v{from_version} → v{to_version}.\n"
+            f"  changes: {', '.join(changes)}\n"
+            f"  reason: {reason}\n"
+            f"  active: .state/plan.v{to_version}.json\n"
+            f"  record: {rfile.relative_to(config.project_root)}",
+            title="✅ nnn --amend",
+            border_style="green",
+        )
+    )
+
+
+def _run_history(session_override: Optional[str]) -> None:
+    """ai nnn --history — print plan versions + amendment records (read-only)."""
+    from rich.table import Table
+
+    loader = SSOTLoader(Path.cwd())
+    config = loader.load()
+    session_path = _resolve_with_override(config, session_override)
+
+    versions = plan_version.list_plan_versions(session_path)
+    active = plan_version.active_version(session_path)
+    records = {r["to_version"]: r for r in plan_version.list_amendment_records(session_path)}
+
+    if not versions:
+        console.print("[yellow]no plan versions yet — run `ai nnn` first.[/yellow]")
+        return
+
+    table = Table(show_header=True, header_style="cyan", title="plan version history")
+    table.add_column("version")
+    table.add_column("origin")
+    table.add_column("changes")
+    table.add_column("reason")
+    for v in versions:
+        rec = records.get(v)
+        if rec:
+            origin = f"amended from v{rec['from_version']}"
+            changes = ", ".join(rec.get("changes", []))
+            reason = rec.get("reason", "")
+        else:
+            origin = "initial nnn"
+            changes = "—"
+            reason = "—"
+        marker = " ◀ active" if v == active else ""
+        table.add_row(f"v{v}{marker}", origin, changes, reason)
+    console.print(table)
 
 
 def _render_needs_human_scope(

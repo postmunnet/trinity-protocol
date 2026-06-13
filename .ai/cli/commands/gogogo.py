@@ -108,6 +108,48 @@ def _verify_step(
     return evaluate_step(merged_step, rule_set_name, rules_doc)
 
 
+def _run_step_verify(
+    verify_spec: Dict[str, Any], project_root: Path
+) -> Dict[str, Any]:
+    """Execute a step's declared evidence command (P0-4, 2026-06-10).
+
+    Deterministic evidence binding: run `verify.command` with the shell,
+    cwd=project_root, bounded timeout, and compare the exit code against
+    `verify.expect_exit` (default 0). No LLM, no inference — the same
+    contract rrr acceptance already uses, moved to the per-step checkpoint.
+    """
+    import subprocess
+    import time as _time
+
+    command = str(verify_spec.get("command") or "")
+    expect_exit = int(verify_spec.get("expect_exit", 0))
+    timeout_s = int(verify_spec.get("timeout_seconds", 120))
+    started = _time.monotonic()
+    timed_out = False
+    try:
+        proc = subprocess.run(
+            command,
+            shell=True,
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+        )
+        exit_code: Optional[int] = proc.returncode
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        exit_code = None
+    duration = _time.monotonic() - started
+    return {
+        "command": command,
+        "expect_exit": expect_exit,
+        "exit_code": exit_code,
+        "timed_out": timed_out,
+        "duration_seconds": round(duration, 3),
+        "ok": (not timed_out) and exit_code == expect_exit,
+    }
+
+
 HMAC_REJECT_EXIT = 79
 
 
@@ -133,16 +175,23 @@ def _load_sandbox_profile(project_root: Path, profile_id: str) -> Optional[Sandb
     boundary. Missing or invalid profiles raise so the caller can emit
     an audit event and refuse dispatch.
     """
-    profile_path = (
-        project_root / ".ai" / "policies" / "sandbox_profiles" / f"{profile_id}.yaml"
+    # Thin-client fallback (P0-3, 2026-06-10): a linked project without
+    # .ai/policies may still declare kernel-shipped profiles.
+    from ..core.kernel_resource import resolve_ai_resource
+
+    profile_path, _source = resolve_ai_resource(
+        project_root,
+        f"policies/sandbox_profiles/{profile_id}.yaml",
+        label=f"sandbox-profile:{profile_id}",
     )
-    if not profile_path.is_file():
+    if profile_path is None or not profile_path.is_file():
         raise SandboxProfileLoadError(
             profile_id,
             "sandbox.profile_missing",
-            f"sandbox profile {profile_id!r} not found at {profile_path}",
+            f"sandbox profile {profile_id!r} not found at "
+            f"{project_root / '.ai' / 'policies' / 'sandbox_profiles' / (profile_id + '.yaml')}"
+            " (no kernel default either)",
         )
-        return None
     try:
         import yaml as _yaml
         data = _yaml.safe_load(profile_path.read_text(encoding="utf-8"))
@@ -271,14 +320,20 @@ def _gogogo_inner(
             )
             raise typer.Exit(2)
 
-    plan_path = session_path / ".state" / "plan.json"
-    if not plan_path.exists():
+    # Q24.10 — execute the latest ACTIVE plan version (honours nnn --amend).
+    # resolve_active_plan prefers plan.v{active}.json and falls back to the
+    # plan.json snapshot for legacy sessions, so this stays backward-compatible.
+    from ..core import plan_version
+
+    try:
+        plan = plan_version.resolve_active_plan(session_path)
+    except FileNotFoundError:
         console.print(
-            f"[red]Missing {plan_path}. Run `ai nnn --plan-envelope <path>` first.[/red]"
+            f"[red]Missing {session_path / '.state' / 'plan.json'}. "
+            f"Run `ai nnn --plan-envelope <path>` first.[/red]"
         )
         raise typer.Exit(2)
 
-    plan = json.loads(plan_path.read_text(encoding="utf-8"))
     cap.input("plan.json", plan)
     steps = plan.get("steps", [])
     if not steps:
@@ -458,7 +513,7 @@ def _gogogo_inner(
     step_verdicts: list[str] = []
     step_tiers: list[str] = []
     for step in steps:
-        n = step.get("n", "?")
+        n = step.get("n", step.get("id", "?"))
         title = step.get("title", "?")
         loop.chain.append(
             "gogogo.step_started",
@@ -828,6 +883,62 @@ def _gogogo_inner(
                 f"  [dim]step {n}[/dim] tool=[bold]{tool_name}[/bold] -> "
                 f"[green]DISPATCH-OK[/green] "
                 f"(exit=0, {dispatch_result.duration_seconds:.3f}s)"
+            )
+
+        # P0-4 (2026-06-10) — per-step evidence binding. Activates ONLY
+        # when the step declares verify:{command,...}; steps without it
+        # keep the structural-only behaviour byte-identical.
+        verify_spec = step.get("verify") if isinstance(step.get("verify"), dict) else None
+        if verify_spec and verify_spec.get("command"):
+            evidence = _run_step_verify(verify_spec, config.project_root)
+            loop.chain.append(
+                "gogogo.step_evidence",
+                {
+                    "session_id": session_path.name,
+                    "step_n": n,
+                    "title": title,
+                    "command": evidence["command"],
+                    "expect_exit": evidence["expect_exit"],
+                    "exit_code": evidence["exit_code"],
+                    "timed_out": evidence["timed_out"],
+                    "duration_seconds": evidence["duration_seconds"],
+                    "evidence_ok": evidence["ok"],
+                    "decided_by": "verifier",
+                },
+            )
+            status = "[green]EVIDENCE-OK[/green]" if evidence["ok"] else "[red]EVIDENCE-FAIL[/red]"
+            console.print(
+                f"  [dim]step {n}[/dim] verify=`{evidence['command']}` -> {status} "
+                f"(exit={evidence['exit_code']}, expect={evidence['expect_exit']}, "
+                f"{evidence['duration_seconds']:.3f}s)"
+            )
+            if not evidence["ok"]:
+                loop.chain.append(
+                    "gogogo.step_failed",
+                    {
+                        "session_id": session_path.name,
+                        "step_n": n,
+                        "title": title,
+                        "rule_set": rule_set,
+                        "verifier_verdict": "DEAD",
+                        "verifier_mode": "evidence_command",
+                        "verifier_reason": (
+                            f"evidence command exit mismatch: "
+                            f"exit={evidence['exit_code']} expected={evidence['expect_exit']}"
+                            + (" (timed out)" if evidence["timed_out"] else "")
+                        ),
+                        "tier": "COLD",
+                        "decided_by": "verifier",
+                    },
+                )
+                console.print(
+                    f"[red]Step {n} evidence command failed — terminating loop.[/red]"
+                )
+                raise typer.Exit(1)
+        elif str(step.get("risk", "")).lower() in ("medium", "high"):
+            console.print(
+                f"  [yellow]step {n} risk={step.get('risk')} has no verify "
+                f"binding — structural PASS only (consider verify.command)[/yellow]"
             )
 
         verdict = _verify_step(step, rule_set, rules_doc)
