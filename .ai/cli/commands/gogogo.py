@@ -885,11 +885,23 @@ def _gogogo_inner(
                 f"(exit=0, {dispatch_result.duration_seconds:.3f}s)"
             )
 
-        # P0-4 (2026-06-10) — per-step evidence binding. Activates ONLY
-        # when the step declares verify:{command,...}; steps without it
-        # keep the structural-only behaviour byte-identical.
+        # Q24.10 step 4 (opt-A) — risk-graduated evidence enforcement. The
+        # deterministic gate decides what to do with this step; risk is never
+        # LLM-judged. evidence_marking fields are stamped on EVERY step's
+        # verdict event so step-5 KPIs (structural_pass_rate, evidence
+        # adoption) can be computed from the audit chain.
+        from ..core.risk_classifier import evaluate_evidence_gate
+        gate = evaluate_evidence_gate(step)
+        evidence_marking = {
+            "risk_level": gate["risk_level"],
+            "risk_source": gate["risk_source"],
+            "evidence_mode": gate["evidence_mode"],
+            "structural_pass": gate["structural_pass"],
+            "evidence_command_present": gate["evidence_command_present"],
+        }
         verify_spec = step.get("verify") if isinstance(step.get("verify"), dict) else None
-        if verify_spec and verify_spec.get("command"):
+
+        if gate["action"] == "evidence_run":
             evidence = _run_step_verify(verify_spec, config.project_root)
             loop.chain.append(
                 "gogogo.step_evidence",
@@ -904,6 +916,7 @@ def _gogogo_inner(
                     "duration_seconds": evidence["duration_seconds"],
                     "evidence_ok": evidence["ok"],
                     "decided_by": "verifier",
+                    **evidence_marking,
                 },
             )
             status = "[green]EVIDENCE-OK[/green]" if evidence["ok"] else "[red]EVIDENCE-FAIL[/red]"
@@ -913,6 +926,7 @@ def _gogogo_inner(
                 f"{evidence['duration_seconds']:.3f}s)"
             )
             if not evidence["ok"]:
+                # D11 — a clear evidence failure is DEAD, NOT NEEDS_HUMAN.
                 loop.chain.append(
                     "gogogo.step_failed",
                     {
@@ -929,16 +943,47 @@ def _gogogo_inner(
                         ),
                         "tier": "COLD",
                         "decided_by": "verifier",
+                        **evidence_marking,
                     },
                 )
                 console.print(
                     f"[red]Step {n} evidence command failed — terminating loop.[/red]"
                 )
                 raise typer.Exit(1)
-        elif str(step.get("risk", "")).lower() in ("medium", "high"):
+        elif gate["action"] == "needs_human":
+            # D1 — high-risk step with no verify.command cannot structural-PASS.
+            # No new waiver: route back to `nnn --amend` (add verify) or human.
+            loop.chain.append(
+                "gogogo.step_failed",
+                {
+                    "session_id": session_path.name,
+                    "step_n": n,
+                    "title": title,
+                    "rule_set": rule_set,
+                    "verifier_verdict": "NEEDS_HUMAN",
+                    "verifier_mode": "risk_gate",
+                    "verifier_reason": (
+                        "high-risk step has no verify.command — refusing "
+                        "structural PASS; add evidence via `nnn --amend` "
+                        "(+`gogogo --fix`) or decide manually"
+                    ),
+                    "tier": "WARM",
+                    "decided_by": "verifier",
+                    **evidence_marking,
+                },
+            )
             console.print(
-                f"  [yellow]step {n} risk={step.get('risk')} has no verify "
-                f"binding — structural PASS only (consider verify.command)[/yellow]"
+                f"[red]Step {n} high-risk ({gate['risk_source']}) without "
+                f"verify.command — NEEDS_HUMAN.[/red]\n"
+                f"  Add `verify:{{command,expect_exit}}` via `ai nnn --amend` "
+                f"then `ai gogogo`, or decide manually."
+            )
+            raise typer.Exit(0)  # graceful NEEDS_HUMAN (no gogogo_complete)
+        elif gate["action"] == "pass_with_warning":
+            # D9 — medium-risk no evidence: PASS but visibly warned + marked.
+            console.print(
+                f"  [yellow]step {n} risk=medium has no verify binding — "
+                f"structural PASS only (consider verify.command)[/yellow]"
             )
 
         verdict = _verify_step(step, rule_set, rules_doc)
@@ -961,6 +1006,7 @@ def _gogogo_inner(
                 "verifier_reason": verdict.reason,
                 "tier": verdict.tier,  # PRD Phase 8 — every verdict path maps to a tier
                 "decided_by": "verifier",
+                **evidence_marking,
             },
         )
 
