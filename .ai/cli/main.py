@@ -15,7 +15,10 @@ from .commands import next as next_cmd
 from .commands import wizard as wizard_cmd
 from .commands import audit as audit_cmd
 from .commands import sss as sss_cmd
+from .commands import aaa as aaa_cmd
 from .commands import doctor as doctor_cmd
+from .commands import config as config_cmd
+from .commands import migrate_state as migrate_state_cmd
 
 # Layer 3 — bare `ai` invokes `ai next` (state-aware next-step
 # prompter), unless --help / -h is passed. We flip
@@ -40,6 +43,8 @@ app.add_typer(sandbox.app, name="sandbox")  # Phase 6: single ingress apply
 app.add_typer(debate.app, name="debate")  # WP3: debate compiler
 app.add_typer(vault.app, name="vault")    # v0.5: local secrets vault (demo)
 app.add_typer(project_cmd.app, name="project")  # Hybrid central Trinity + local project binding
+app.add_typer(config_cmd.app, name="config")  # Runtime State Convention — declare runtime root (no home pollution)
+app.add_typer(migrate_state_cmd.app, name="migrate-state")  # Phase D — move legacy home state into runtime
 # Phase 1 — Goal Loop short-code rituals (driven by graphs/standard.yaml)
 app.add_typer(sss_cmd.app, name="sss")        # Ritual alias — `ai sss <task>` ≡ `ai session new <task>`
 app.add_typer(vvv_cmd.app, name="vvv")        # 5 questions
@@ -47,6 +52,7 @@ app.add_typer(nnn_cmd.app, name="nnn")        # numbered plan + budget check
 app.add_typer(gogogo_cmd.app, name="gogogo")  # step-by-step with verifier
 app.add_typer(rrr_cmd.app, name="rrr")        # Phase 1.5 — executable retro gate
 app.add_typer(lll_cmd.app, name="lll")        # Phase 2.3 — read-only situational snapshot
+app.add_typer(aaa_cmd.app, name="aaa")        # Q24.10 step 5 — read-only amendment router + evidence KPI
 app.add_typer(loop_cmd.app, name="loop")      # Phase 5 — goal tree + checkpoint/resume
 app.add_typer(ddd_cmd.app, name="ddd")        # Phase 5 — deploy decision gate (VERIFIED→PROMOTED→DEPLOYED)
 app.add_typer(shim_cmd.app, name="shim")      # Phase 8 — render shim adapters for vendor harnesses
@@ -97,6 +103,13 @@ def main(ctx: typer.Context):
     except Exception as e:
         # Allow help/version to run without crashing
         if "--help" in sys.argv or "-h" in sys.argv or "version" in sys.argv:
+            return
+
+        # `vvv --show` is a pure static prompt (the 5 questions) — it must
+        # render from any cwd with no SSOT/session, per the two-phase
+        # adapter contract (2026-06-12). vvv._run returns before touching
+        # config in show mode, so skipping ctx.obj here is safe.
+        if "vvv" in sys.argv and "--show" in sys.argv:
             return
 
         typer.secho(f"FATAL: {e}", fg=typer.colors.RED, err=True)

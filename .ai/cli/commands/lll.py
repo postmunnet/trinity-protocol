@@ -87,6 +87,23 @@ def _run(json_out: bool, audit_n: int) -> int:
     if sess.get("session_path"):
         spath = Path(sess["session_path"])
         snapshot["open_work"] = _open_work(spath)
+        # Q24.10 step 5 — session-scope evidence-adoption KPI (no fleet
+        # aggregation). kpi_scope is carried so the number is never read as
+        # global (lesson Q24.9).
+        try:
+            from ..core.aaa_analyzer import compute_kpi, _session_events
+            kpi = compute_kpi(_session_events(project_root, spath.name))
+            snapshot["evidence_kpi"] = {
+                **kpi,
+                "kpi_scope": {
+                    "level": "session",
+                    "session_id": spath.name,
+                    "project": project_root.name,
+                    "source": "audit_events",
+                },
+            }
+        except Exception:
+            snapshot["evidence_kpi"] = None
         # Build a richer memory-cli search query: the operator's Q1 Goal
         # answer is far more topical than the slug alone. Falls back to
         # the slug when THINK/01_PROMPT.md is missing or unparseable
@@ -540,6 +557,17 @@ def _render_human(snap: Dict[str, Any]) -> None:
                 title=f"💡 {len(snap['memory_hints'])} memory hint(s)",
                 border_style="green",
             )
+        )
+
+    # Q24.10 step 5 — evidence-adoption KPI footer (session scope, labelled).
+    kpi = snap.get("evidence_kpi")
+    if kpi:
+        sc = kpi["kpi_scope"]
+        console.print(
+            f"[cyan]evidence[/cyan]  adoption={kpi['evidence_command_adoption_rate']} · "
+            f"structural={kpi['structural_pass_rate']} · "
+            f"high-risk-no-evidence={kpi['high_risk_without_evidence_count']} "
+            f"[dim](scope: {sc['level']} {sc['session_id']} · n={kpi['steps_measured']})[/dim]"
         )
 
 

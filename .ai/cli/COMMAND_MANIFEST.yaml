@@ -70,6 +70,11 @@ rituals:
     status: supported
     notes: 'Read-only situational snapshot. Safe to run anytime.'
 
+  aaa:
+    canonical: 'ai aaa'
+    status: supported
+    notes: 'Q24.10 step 5 — read-only amendment-loop router + session-scope evidence KPI. Analyzer only: no state mutation, no transition, no enforce. Routes to vvv/nnn/gogogo --amend|fix.'
+
   close:
     canonical: 'ai close'
     equivalent_to: 'ai close run'
