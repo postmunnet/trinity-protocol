@@ -118,6 +118,11 @@ def test_kernel_claude_md_does_not_claim_nnn_first():
         "planning passes first",
         "nnn_pass.*first",
         "nnn.*before.*vvv",
+        # 2026-06-14: the SHORT_CODES "When" column drifted to vvv-after-nnn
+        # ("vvv | … | After nnn pass (post-plan confirm)") contradicting the
+        # Sequence line + ratified vvv-first doctrine (retro-0011). Lock it.
+        "after nnn pass",
+        "post-plan confirm",
     ]
     for phrase in forbidden_phrases:
         assert not re.search(phrase, claude, re.IGNORECASE), (

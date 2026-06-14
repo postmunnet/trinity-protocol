@@ -67,8 +67,8 @@ CLI-native AI microkernel — Coordinator + Judge for vendor AI. Spec pack v2.0 
 |------|--------|------|
 | `lll` | Look/List status (git, sessions, changes) | Start of session, anytime |
 | `sss: <task>` | Start session + snapshot | New task |
-| `nnn` | New plan with estimates | After sss |
-| `vvv` | Verify understanding (5 questions) | After nnn pass (post-plan confirm) |
+| `vvv` | Verify understanding (5 questions) | After sss (clarify before plan) |
+| `nnn` | New plan with estimates | After vvv pass |
 | `gogogo` | Execute plan incrementally | After vvv approved |
 | `ddd` | Done/Deploy (human gate) | After gogogo + verify |
 | `rrr` | Retrospective + memory update | End of session |
