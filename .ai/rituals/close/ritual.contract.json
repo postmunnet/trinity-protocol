@@ -1,7 +1,7 @@
 {
   "ritual": "close",
   "version": "1.0",
-  "purpose": "Seal a terminal session — kernel-mechanical finalizer that emits final_manifest.json (artifact hashes + audit chain anchor + metrics) and a human-readable close report, transitioning the session to SEALED per Constitution Articles X and XXX.",
+  "purpose": "Seal a terminal session — kernel-mechanical finalizer that emits final_manifest.json (artifact hashes + audit chain anchor + metrics) and a human-readable close report, transitioning the session to SEALED per Constitution Articles X and XXX. TWO-LAYER MODEL (conceptual vs physical): allowed_current_states/allowed_next_states below are CONCEPTUAL close/ratification states (Article XII.5 empirical ratification trail), NOT physical graph states. The physical terminal gate is the graph's terminal_states (graphs/standard.yaml -> DONE, DEAD), derived via core/terminal_states.get_terminal_states_for_close(). FAILED/ABORTED are conceptual close-attempt outcomes and SEALED is the conceptual seal/archive result marker — none are graph states. commands/close.py MUST consume only the graph-derived physical terminals for its gate and MUST NOT read these conceptual states as the physical terminal set. The two layers are intentionally distinct — do not collapse one into the other.",
   "delegated_role": "Session Finalizer",
   "input_context": "context.schema.json",
   "write_template": "write.template.md",
