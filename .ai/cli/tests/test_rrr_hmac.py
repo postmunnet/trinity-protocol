@@ -204,3 +204,34 @@ def test_no_flag_keeps_rrr_baseline_path(tmp_path, monkeypatch):
     ]
     for t in rrr_transitions:
         assert "via" not in t["details"]["evidence"]
+
+
+def test_verified_nondeploy_rrr_reaches_done_without_ddd(tmp_path, monkeypatch):
+    proj, sess = _seed_at_verified(tmp_path)
+    monkeypatch.chdir(proj)
+    monkeypatch.delenv(ENV_NAME, raising=False)
+
+    code = _run(
+        dry_run=False,
+        auto_deploy=False,
+        retro_type="feat",
+        baseline="HEAD",
+        retroactive=False,
+        session_override=None,
+        hmac_envelope_file=None,
+    )
+    assert code == 0
+
+    loop = Loop(sess, graph_name="standard", project_root=proj)
+    assert loop.current() == "DONE"
+
+    chain = AuditChain(proj / ".ai" / "audit" / "events.ndjson")
+    transitions = [
+        ev for ev in chain.iter_events()
+        if ev["type"] == "graph.transition"
+    ]
+    triggers = [ev["details"].get("trigger") for ev in transitions]
+    assert "rrr" in triggers
+    assert "rrr_complete" in triggers
+    assert "promote_request" not in triggers
+    assert "deploy_request" not in triggers

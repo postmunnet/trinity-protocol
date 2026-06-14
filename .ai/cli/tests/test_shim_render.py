@@ -19,7 +19,8 @@ REPO_ROOT = Path.cwd()
 
 
 def test_short_codes_canonical_set():
-    assert SHORT_CODES == ["lll", "vvv", "nnn", "gogogo", "rrr"]
+    # Full ritual surface since 2026-06-10 (sss 05-11, ddd 06-10 shims).
+    assert SHORT_CODES == ["lll", "sss", "vvv", "nnn", "gogogo", "ddd", "rrr"]
 
 
 def test_vendors_canonical_set():
@@ -33,9 +34,9 @@ def test_load_shim_reads_frontmatter():
     assert spec.body  # non-empty body
 
 
-def test_load_all_shims_returns_5():
+def test_load_all_shims_returns_full_surface():
     specs = load_all_shims(REPO_ROOT / ".ai" / "shims")
-    assert len(specs) == 5
+    assert len(specs) == 7
     assert {s.code for s in specs} == set(SHORT_CODES)
 
 
@@ -97,7 +98,7 @@ def test_render_all_dry_run_returns_paths(tmp_path: Path):
         shutil.copytree(src, dst)
 
     out = render_all(proj, "claude-code", dry_run=True)
-    assert len(out) == 5
+    assert len(out) == 7
     for code in SHORT_CODES:
         assert f".claude/commands/{code}.md" in out
     # Dry-run: nothing written
@@ -113,7 +114,7 @@ def test_render_all_writes_files(tmp_path: Path):
         dst = proj / ".ai" / "shims" / code
         shutil.copytree(src, dst)
     out = render_all(proj, "cursor", dry_run=False)
-    assert len(out) == 5
+    assert len(out) == 7
     for code in SHORT_CODES:
         p = proj / ".cursor" / "rules" / f"{code}.mdc"
         assert p.exists()

@@ -67,13 +67,80 @@ def test_close_source_escalates_cold_external_audit_failure():
 
 
 def test_close_requires_terminal_graph_before_archive():
-    """Prod verify alone must not be enough; close runs after rrr."""
+    """Prod verify alone must not be enough; close runs after rrr.
+
+    Terminal vocabulary is graph-derived (single source of truth): the gate
+    calls get_terminal_states_for_close() instead of a hard-coded literal.
+    """
     source = inspect.getsource(close_mod)
-    assert 'graph_state not in {"DONE", "DEAD"}' in source
-    assert "close requires DONE or DEAD" in source
-    assert source.find("close requires DONE or DEAD") < source.find(
+    assert "get_terminal_states_for_close(config.project_root)" in source
+    assert "graph_state not in terminal_states" in source
+    assert "Session graph is not terminal" in source
+    assert source.find("Session graph is not terminal") < source.find(
         "archive_session(session_path, config)"
     )
+
+
+class _FakeChain:
+    def __init__(self, events):
+        self._events = events
+
+    def iter_events(self):
+        return iter(self._events)
+
+
+def test_close_deploy_bound_detects_deploy_request():
+    chain = _FakeChain([
+        {
+            "type": "graph.transition",
+            "details": {
+                "session_id": "s1",
+                "trigger": "deploy_request",
+            },
+        },
+    ])
+    assert close_mod._session_is_deploy_bound(chain, "s1") is True
+
+
+def test_close_deploy_bound_detects_ddd_completed():
+    chain = _FakeChain([
+        {
+            "type": "ddd.completed",
+            "details": {"session_id": "s1"},
+        },
+    ])
+    assert close_mod._session_is_deploy_bound(chain, "s1") is True
+
+
+def test_close_deploy_bound_ignores_nondeploy_and_other_sessions():
+    chain = _FakeChain([
+        {
+            "type": "graph.transition",
+            "details": {
+                "session_id": "other",
+                "trigger": "deploy_request",
+            },
+        },
+        {
+            "type": "graph.transition",
+            "details": {
+                "session_id": "s1",
+                "trigger": "rrr",
+            },
+        },
+        {
+            "type": "rrr.completed",
+            "details": {"session_id": "s1"},
+        },
+    ])
+    assert close_mod._session_is_deploy_bound(chain, "s1") is False
+
+
+def test_close_prod_verify_gate_is_deploy_bound_only():
+    source = inspect.getsource(close_mod)
+    assert "_session_is_deploy_bound" in source
+    assert "Deploy-bound session" in source
+    assert "SKIPPED (non-deploy)" in source
 
 
 # ───────────────────── functional tests via direct module API ──────────────

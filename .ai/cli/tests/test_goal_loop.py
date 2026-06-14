@@ -73,6 +73,7 @@ transitions:
   - { from: PROMOTED, to: DEPLOYED, trigger: deploy_request,   decided_by: human }
   - { from: DEPLOYED, to: RETRO,    trigger: rrr,              decided_by: kernel }
   - { from: RETRO,    to: DONE,     trigger: rrr_complete,     decided_by: kernel }
+  - { from: VERIFIED, to: RETRO,    trigger: rrr,              decided_by: kernel }
 """
 
 
@@ -283,6 +284,32 @@ def test_e2e_full_loop(tmp_path: Path):
         assert ev["type"] == "graph.transition"
         assert ev["details"]["trigger"] == trigger
         assert ev["details"]["decided_by"] == authority
+
+
+def test_e2e_nondeploy_loop_skips_ddd(tmp_path: Path):
+    """Walk sss -> vvv -> nnn -> gogogo -> rrr -> DONE without a ddd
+    promote/deploy pair. This covers documentation/refactor/admin work."""
+    project, session = _make_project(tmp_path)
+    loop = Loop(session, graph_name="standard", project_root=project)
+
+    transitions = [
+        ("sss", "kernel", "THINK"),
+        ("nnn_pass", "kernel", "SANDBOX"),
+        ("vvv_pass", "verifier", "DO"),
+        ("gogogo_complete", "verifier", "VERIFIED"),
+        ("rrr", "kernel", "RETRO"),
+        ("rrr_complete", "kernel", "DONE"),
+    ]
+
+    for i, (trigger, authority, expected) in enumerate(transitions, start=1):
+        new = loop.fire(trigger, decided_by=authority, evidence={"i": i})
+        assert new == expected
+
+    assert loop.current() == "DONE"
+    events = list(loop.chain.iter_events())
+    triggers = [ev["details"]["trigger"] for ev in events]
+    assert "promote_request" not in triggers
+    assert "deploy_request" not in triggers
 
 
 def test_loop_reconciles_from_audit_on_init(tmp_path: Path):

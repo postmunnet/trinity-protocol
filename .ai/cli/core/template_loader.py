@@ -18,6 +18,15 @@ class TemplateLoader:
         paths = ssot_config.raw_config.get("paths", {})
         tpl = paths.get("templates", str(ssot_config.ai_root / "templates"))
         tpl_path = Path(str(tpl).replace("${ai_root}", str(ssot_config.ai_root)).replace("${project_root}", str(ssot_config.project_root)))
+        # Thin-client fallback (mirrors sss._find_git_root / doctor, retro-0055):
+        # a thin-linked project strips its vendored `.ai/templates`, so the
+        # SSOT-resolved project-local path is absent. Fall back to the kernel's
+        # own `.ai/templates` (this file lives at <kernel>/.ai/cli/core/, so
+        # parents[2] is the kernel `.ai`) so scaffolding still works.
+        if not tpl_path.is_dir():
+            kernel_templates = Path(__file__).resolve().parents[2] / "templates"
+            if kernel_templates.is_dir():
+                tpl_path = kernel_templates
         return cls(tpl_path)
 
     def load(self, rel_path: str) -> str:
@@ -53,6 +62,14 @@ class TemplateLoader:
         variables = variables or {}
         exclude = set(exclude or [])
         src_dir = self.templates_root / src_rel_dir
+        # Fail loud: a missing src_dir would otherwise make rglob() yield
+        # nothing, silently producing a half-scaffolded session (the thin-client
+        # bug this guards against — see retro on TemplateLoader fallback).
+        if not src_dir.is_dir():
+            raise FileNotFoundError(
+                f"template source directory not found: {src_dir} "
+                f"(templates_root={self.templates_root}, src_rel_dir={src_rel_dir!r})"
+            )
         for p in src_dir.rglob("*"):
             if p.is_dir():
                 continue

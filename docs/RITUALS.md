@@ -224,6 +224,73 @@ that can be closed.
 
 ---
 
+## Amendment Loop (Q24.10 — SHIPPED 2026-06-13)
+
+The canonical chain (`sss → vvv → nnn → gogogo → ddd → rrr → close`) is the
+forward path. It is **no longer forward-only**: when a session hits a gap,
+you amend in place rather than closing and reopening (which fragments
+memory/audit from the original work). Every amendable artifact keeps an
+**immutable v1**; each amend writes a new version + an amendment record.
+
+### `vvv --amend` / `--confirm` — goal authority
+
+`vvv` owns the goal contract, so a goal-level change is legal here.
+`vvv --amend --answer N=… --reason …` creates `goal_contract.v(N+1)` (v1
+immutable); amended answers reset to `agent_draft` / `human_confirmed:false`.
+Answer source is tracked per question — the kernel cannot tell a human-typed
+answer from an agent-drafted one, so the default is **unconfirmed** until an
+explicit `vvv --confirm 1,2`. A machine-readable `.state/goal_contract_signal.json`
+(`has_unconfirmed_answers`) is the downstream source of truth.
+
+### `nnn --amend` — plan authority
+
+`nnn --amend --plan-envelope <delta>` creates `plan.v(N+1)` (v1 immutable).
+A **goal-level change is rejected** (exit 3 + `plan_amend_rejected`) → use
+`vvv --amend`. `gogogo` executes the latest active version.
+
+### `gogogo` — risk-graduated evidence gate
+
+Risk is **deterministic** (explicit `step.risk` > hotlist > legacy
+`unknown`), never LLM-judged. A **high-risk step with no `verify.command`
+stops as NEEDS_HUMAN** (route to `nnn --amend` to add the binding — there is
+no waiver flag for this); medium warns but PASSes; low/unknown PASS. Every
+verdict is audited with `structural_pass` / `evidence_mode` / `risk_level` /
+`risk_source` so evidence adoption is measurable. A `verify.command` that
+runs and fails is **DEAD**, never NEEDS_HUMAN.
+
+### `rrr` — debt gate + explicit waiver
+
+`rrr` refuses RETRO→DONE when the session carries blocking debt (currently:
+unconfirmed goal answers) unless explicitly waived with
+`rrr --accept-debt --reason …` (missing reason fails). The waiver is recorded
+`waiver_source: explicit_cli_flag` / `decided_by: operator_waiver` — it is an
+**explicit operator waiver, not a proof of human authority**. Legacy sessions
+without the signal carry no debt (backward-compatible).
+
+### `aaa` — read-only amendment router (analyzer, not a gate)
+
+`ai aaa [--json]` reads the session's signals and returns
+`verdict + route + reasons` + a session-scope evidence KPI. It is
+**read-only**: it never mutates state, never fires a transition, never
+enforces, and is **not a graph transition**. The real gates are the `gogogo`
+evidence gate and the `rrr` debt gate; `aaa` only points the way, using a
+deterministic route priority:
+
+```
+1. unconfirmed goal answers           -> vvv --amend / vvv --confirm
+2. missing executable acceptance      -> nnn --amend
+3. high-risk step without verify       -> nnn --amend   (add the binding)
+4. verify present but evidence failed -> gogogo --fix   (re-run the step)
+5. other blocking debt                -> human / rrr --accept-debt
+6. nothing                            -> clean (no route)
+```
+
+KPI is **session-scope only** (no fleet/global aggregation) and carries a
+`kpi_scope` label: `evidence_command_adoption_rate`, `structural_pass_rate`,
+`high_risk_without_evidence_count`. It also surfaces in the `lll` footer.
+
+---
+
 ## See Also
 
 - [`ORIGIN.md`](ORIGIN.md) - origin story and rationale behind the rituals

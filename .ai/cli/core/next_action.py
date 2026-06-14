@@ -72,6 +72,14 @@ def _standard_next(
             session_id=None,
         )
     if state == "SANDBOX":
+        if not has_nnn_pass:
+            return NextAction(
+                headline="In SANDBOX; vvv passed — author the plan",
+                command="ai nnn --plan-envelope <path/to/plan.json>",
+                why="nnn budget-checks the plan and fires SANDBOX→DO",
+                state=state,
+                session_id=None,
+            )
         return NextAction(
             headline="In SANDBOX; plan committed",
             command="ai gogogo",
@@ -89,12 +97,14 @@ def _standard_next(
         )
     if state == "VERIFIED":
         return NextAction(
-            headline="VERIFIED; plan passed all gates",
-            command="ai ddd --target=dev --reason='...'",
-            why="ddd is the human-decided promote+deploy gate (Phase 5)",
+            headline="VERIFIED; close non-deploy work or run ddd for deploy-bound work",
+            command="ai rrr",
+            why=(
+                "rrr closes standard non-deploy sessions; run "
+                "`ai ddd --target=dev --reason='...'` first only when shipping a deploy artifact"
+            ),
             state=state,
             session_id=None,
-            blocked=True,
         )
     if state == "PROMOTED":
         return NextAction(

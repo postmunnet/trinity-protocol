@@ -22,7 +22,7 @@ terminal states / tiers / event_types.
 Article X anchor: the final manifest is an APPEND ANCHOR, never a
 mutator. The dataclass shapes describe what gets appended.
 
-Article XVI anchor: closed frozensets — TERMINAL_STATES_FOR_CLOSE,
+Article XVI anchor: closed frozensets — terminal vocab via get_terminal_states_for_close (graph-derived),
 CLOSE_TIERS, EXTERNAL_AUDIT_REQUIRED_TIERS, CAPTURE_STATUS_ALLOWED,
 CLOSE_AUDIT_EVENTS — unknown state / tier / status / event = denied.
 """
@@ -38,12 +38,20 @@ FINAL_MANIFEST_VERSION: str = "1.0"
 
 
 # ─────────── §1 — Terminal states accepted by close ───────────
+#
+# Single source of truth = the canonical graph (graphs/standard.yaml
+# `terminal_states`). This module no longer declares its own literal
+# frozenset — that was the drift (it diverged to {DONE,FAILED,ABORTED}
+# while the graph + gate used {DONE,DEAD}). Derive at call time via the
+# graph-backed helper; the G11 lock-step test asserts contract == graph.
+#
+# FAILED / ABORTED are close-ATTEMPT outcomes (not graph terminal states);
+# SEALED is archive metadata. They are intentionally absent here.
 
-TERMINAL_STATES_FOR_CLOSE: frozenset = frozenset({
-    "DONE",       # canonical happy-path closure
-    "FAILED",     # closure after irrecoverable failure
-    "ABORTED",    # operator-decided early termination
-})
+from .terminal_states import (  # noqa: E402  (re-export, keep near §1)
+    get_terminal_states_for_close,
+    TerminalStatesError,
+)
 
 
 # ─────────── §4 — Tier routing ───────────
@@ -70,9 +78,12 @@ CAPTURE_STATUS_ALLOWED: frozenset = frozenset({
 CLOSE_AUDIT_EVENTS: frozenset = frozenset({
     "close.invoked",
     "close.manifest_built",
+    "close.forced",                   # --force close, carries audited reason (D2)
+    "close.blocked",                  # declared-ahead: non-terminal close gate (S2 of visibility session emits)
     "close.external_audit_emitted",   # COLD only
     "session.closed",
     "close.completed",
+    "close.failed",                   # declared-ahead: failure path (visibility session emits)
 })
 
 
@@ -129,7 +140,7 @@ class FinalManifest:
     session_id: str
     closed_at: str                                   # RFC3339 UTC
     tier: str                                        # one of CLOSE_TIERS
-    graph_state_final: str                           # one of TERMINAL_STATES_FOR_CLOSE (or DEPLOYED/VERIFIED for force-close)
+    graph_state_final: str                           # one of get_terminal_states_for_close() (or DEPLOYED/VERIFIED for force-close)
     artifacts: List[Dict[str, Any]] = field(default_factory=list)
     captures: Optional[CaptureSection] = None
     audit: Optional[AuditChainAnchor] = None
@@ -151,7 +162,7 @@ class ExternalAudit:
 
     session_id: str
     tier: str                                        # const "COLD"
-    final_state: str                                 # one of TERMINAL_STATES_FOR_CLOSE
+    final_state: str                                 # one of get_terminal_states_for_close()
     artifacts: List[Dict[str, Any]] = field(default_factory=list)
     captures: Optional[CaptureSection] = None
     decision: Optional[Dict[str, Any]] = None        # DDD packet ref
@@ -162,7 +173,8 @@ class ExternalAudit:
 
 __all__ = [
     "FINAL_MANIFEST_VERSION",
-    "TERMINAL_STATES_FOR_CLOSE",
+    "get_terminal_states_for_close",
+    "TerminalStatesError",
     "CLOSE_TIERS",
     "EXTERNAL_AUDIT_REQUIRED_TIERS",
     "CAPTURE_STATUS_ALLOWED",

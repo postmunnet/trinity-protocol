@@ -209,3 +209,132 @@ def test_contract_baseline_exists(tool):
         f"tool {tool['name']!r}: contract_baseline {baseline_path} missing"
     assert (baseline_path / "README.md").is_file(), \
         f"tool {tool['name']!r}: contract_baseline missing README.md"
+
+
+# ─── kernel_invocable enforcement (P2, 2026-06-10) ───────────────────
+
+
+def test_kernel_invocable_false_refused_at_dispatch(tmp_path):
+    """Constitutional boundary: a tool declaring kernel_invocable: false is
+    listable but the kernel dispatcher must REFUSE to run it (was
+    declaration-only before 2026-06-10)."""
+    import yaml as _yaml
+    from cli.core.tools_registry import call as call_tool
+    from cli.core.tools_registry import load_registry
+
+    ai_dir = tmp_path / ".ai"
+    ai_dir.mkdir()
+    (ai_dir / "tools.yaml").write_text(_yaml.safe_dump({
+        "version": "1",
+        "tools": [{
+            "name": "semantic-fake",
+            "bin": "node ${project_root}/nope/index.js",
+            "path": "${project_root}/nope",
+            "schema_version": "1",
+            "contract_version": "1.0",
+            "policy_default": "safe",
+            "kernel_invocable": False,
+        }],
+    }))
+    reg = load_registry(tmp_path)
+    assert reg["semantic-fake"].kernel_invocable is False
+    inv = call_tool(tmp_path, "semantic-fake", "health")
+    assert inv.ok is False
+    assert "kernel_invocable" in (inv.error or "")
+
+
+def test_kernel_invocable_defaults_true(tmp_path):
+    import yaml as _yaml
+    from cli.core.tools_registry import load_registry
+
+    ai_dir = tmp_path / ".ai"
+    ai_dir.mkdir()
+    (ai_dir / "tools.yaml").write_text(_yaml.safe_dump({
+        "version": "1",
+        "tools": [{
+            "name": "normal-fake",
+            "bin": "node ${project_root}/x/index.js",
+            "path": "${project_root}/x",
+            "schema_version": "1",
+            "contract_version": "1.0",
+            "policy_default": "safe",
+        }],
+    }))
+    reg = load_registry(tmp_path)
+    assert reg["normal-fake"].kernel_invocable is True
+
+
+# ─── kernel-source discovery fallback (thin clients, 2026-06-12) ─────
+# Linked projects strip .ai/tools.yaml → registry came back empty and
+# rrr's memory auto-feed degraded ("known: []"). load_registry now falls
+# back to manifest discovery rooted at the kernel's own location, ONLY
+# when tools.yaml is absent and TRINITY_SIBLINGS_ROOT is unset.
+
+from cli.core import tools_registry as _tr
+
+
+def _fake_sibling_root(tmp_path: Path) -> Path:
+    root = tmp_path / "fake-kernel-root" / "siblings"
+    tool = root / "demo-cli"
+    tool.mkdir(parents=True)
+    (tool / "index.js").write_text("// demo\n")
+    (tool / "trinity.yaml").write_text(
+        yaml.safe_dump({
+            "name": "demo-cli",
+            "schema_version": "1",
+            "contract_version": "1.0",
+            "runtime": "node",
+            "bin": "./index.js",
+        })
+    )
+    return root
+
+
+def test_fallback_discovers_when_tools_yaml_absent(tmp_path, monkeypatch):
+    proj = tmp_path / "thin-proj"
+    (proj / ".ai").mkdir(parents=True)  # no tools.yaml
+    root = _fake_sibling_root(tmp_path)
+    monkeypatch.delenv("TRINITY_SIBLINGS_ROOT", raising=False)
+    monkeypatch.setattr(_tr, "_kernel_sibling_roots", lambda: [root])
+
+    reg = _tr.load_registry(proj)
+    assert "demo-cli" in reg
+    assert reg["demo-cli"].source == "manifest"
+
+
+def test_no_fallback_when_tools_yaml_present(tmp_path, monkeypatch):
+    proj = tmp_path / "full-proj"
+    (proj / ".ai").mkdir(parents=True)
+    (proj / ".ai" / "tools.yaml").write_text(yaml.safe_dump({"tools": []}))
+    root = _fake_sibling_root(tmp_path)
+    monkeypatch.delenv("TRINITY_SIBLINGS_ROOT", raising=False)
+    monkeypatch.setattr(_tr, "_kernel_sibling_roots", lambda: [root])
+
+    reg = _tr.load_registry(proj)
+    assert "demo-cli" not in reg  # explicit (empty) config wins
+
+
+def test_no_fallback_when_env_set(tmp_path, monkeypatch):
+    proj = tmp_path / "thin-proj-env"
+    (proj / ".ai").mkdir(parents=True)
+    fallback_root = _fake_sibling_root(tmp_path)
+    env_root = tmp_path / "env-root"
+    env_root.mkdir()
+    monkeypatch.setenv("TRINITY_SIBLINGS_ROOT", str(env_root))
+    monkeypatch.setattr(_tr, "_kernel_sibling_roots", lambda: [fallback_root])
+
+    reg = _tr.load_registry(proj)
+    assert "demo-cli" not in reg  # explicit env root (empty) wins over fallback
+
+
+def test_fallback_prefers_first_candidate_with_manifests(tmp_path, monkeypatch):
+    proj = tmp_path / "thin-proj-order"
+    (proj / ".ai").mkdir(parents=True)
+    empty_first = tmp_path / "no-manifests-here"
+    empty_first.mkdir()
+    root = _fake_sibling_root(tmp_path)
+    monkeypatch.delenv("TRINITY_SIBLINGS_ROOT", raising=False)
+    monkeypatch.setattr(_tr, "_kernel_sibling_roots", lambda: [empty_first, root])
+
+    reg = _tr.load_registry(proj)
+    assert "demo-cli" in reg

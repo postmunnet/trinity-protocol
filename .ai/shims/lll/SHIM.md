@@ -16,9 +16,15 @@ last-updated: 2026-04-30
 Give the agent (and the human) a **fast, factual snapshot** of the current
 state before any other action: git, sessions, audit, recent decisions.
 
-`lll` is **read-only**. It NEVER mutates state, opens sessions, or proposes
-plans. Its only job is to surface what is *currently true* so the next
-short code (`sss`/`vvv`/`nnn`) starts from a correct baseline.
+`lll` makes **no domain writes** — it NEVER mutates project state, opens
+sessions, or proposes plans. The one deliberate exception: it appends a
+single `lll.invoked` event to the audit chain, because *looking at state
+is itself an auditable act* (who checked what, when — e.g. a remote
+`/lll` from Telegram before approving a gate). Its only job is to
+surface what is *currently true* so the next short code (`sss`/`vvv`/
+`nnn`) starts from a correct baseline.
+(Wording locked by operator decision 2026-06-12 — resolves the
+"read-only vs audit append" drift recorded in the atlas K18 register.)
 
 ## When to invoke
 
@@ -56,10 +62,13 @@ structured envelope per `01_TOOL_CONTRACT.md`.
 ## Behavior contract
 
 **MUST**
-- Read-only. No writes to `.ai/state/`, `.ai/audit/`, or session folders.
+- No domain writes: nothing under `.ai/state/`, session folders, or any
+  project file may change. The audit chain is the single exception below.
 - Resolve all paths via SSOT (`${project_root}/...`); never hard-code.
-- Append a `lll.invoked` event to the audit chain (read-only events still
-  append per Decision D9).
+- Append a `lll.invoked` event to the audit chain — observation is an
+  auditable act; the trail of "who looked, when" has real incident value
+  (operator decision 2026-06-12; the earlier citation to D9 here was
+  wrong — D9 is the genesis-event spec, unrelated to read-event appends).
 - Exit 0 on success regardless of how much state exists (empty repo is OK).
 
 **MUST NOT**

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import dataclasses
 
+from pathlib import Path
+
 from cli.core.close_contract import (
     AuditChainAnchor,
     CAPTURE_STATUS_ALLOWED,
@@ -13,8 +15,11 @@ from cli.core.close_contract import (
     ExternalAudit,
     FINAL_MANIFEST_VERSION,
     FinalManifest,
-    TERMINAL_STATES_FOR_CLOSE,
+    get_terminal_states_for_close,
 )
+
+# test file: <root>/.ai/cli/tests/<this> -> parents[3] == <root> (trinity_v2)
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 # ─────────── manifest version pin ───────────
@@ -28,11 +33,13 @@ def test_final_manifest_version_is_one_dot_zero() -> None:
 
 
 def test_terminal_states_for_close_canonical_set() -> None:
-    assert TERMINAL_STATES_FOR_CLOSE == frozenset({"DONE", "FAILED", "ABORTED"})
+    # Graph-derived single source of truth (see core/terminal_states.py).
+    # FAILED/ABORTED are close-attempt outcomes, not graph terminal states.
+    assert get_terminal_states_for_close(_PROJECT_ROOT) == frozenset({"DONE", "DEAD"})
 
 
-def test_terminal_states_for_close_count_three() -> None:
-    assert len(TERMINAL_STATES_FOR_CLOSE) == 3
+def test_terminal_states_for_close_count_two() -> None:
+    assert len(get_terminal_states_for_close(_PROJECT_ROOT)) == 2
 
 
 # ─────────── §4 — tier routing ───────────
@@ -66,17 +73,20 @@ def test_capture_status_allowed_count_three() -> None:
 # ─────────── §5 — audit events ───────────
 
 
-def test_close_audit_events_count_five() -> None:
-    assert len(CLOSE_AUDIT_EVENTS) == 5
+def test_close_audit_events_count_eight() -> None:
+    assert len(CLOSE_AUDIT_EVENTS) == 8
 
 
 def test_close_audit_events_canonical_set() -> None:
     expected = {
         "close.invoked",
         "close.manifest_built",
+        "close.forced",
+        "close.blocked",
         "close.external_audit_emitted",
         "session.closed",
         "close.completed",
+        "close.failed",
     }
     assert CLOSE_AUDIT_EVENTS == expected
 

@@ -187,7 +187,10 @@ def _fallback_project(
         project_name=root.name,
         root_path=root,
         memory_home=memory_home,
-        memory_db_path=memory_home / "db" / f"{slug}.db",
+        # Doctrine (retro-0060): evidence DB is project-local (matches
+        # tools_registry._tool_env). memory_home stays central for the
+        # federation registry only.
+        memory_db_path=root / ".ai" / ".memory" / "memory.sqlite",
         trinity_home=default_trinity_home(env),
         source=source,
         registered=False,

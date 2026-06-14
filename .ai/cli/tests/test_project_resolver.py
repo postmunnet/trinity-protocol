@@ -133,7 +133,7 @@ def test_resolver_fails_clearly_when_reference_is_ambiguous(tmp_path: Path) -> N
         )
 
 
-def test_resolver_fallback_uses_memory_home_for_db_path(tmp_path: Path) -> None:
+def test_resolver_fallback_uses_project_local_db_path(tmp_path: Path) -> None:
     project = tmp_path / "loose-project"
     project.mkdir()
     memory_home = tmp_path / "memory-home"
@@ -146,7 +146,10 @@ def test_resolver_fallback_uses_memory_home_for_db_path(tmp_path: Path) -> None:
 
     assert resolved.source == "cwd"
     assert resolved.registered is False
-    assert resolved.memory_db_path == memory_home / "db" / "loose_project.db"
+    # Doctrine (retro-0060): evidence DB is project-local even for
+    # unregistered cwd-fallback projects; memory_home stays the
+    # federation-registry home only.
+    assert resolved.memory_db_path == project / ".ai" / ".memory" / "memory.sqlite"
 
 
 def test_resolver_can_require_registered_project(tmp_path: Path) -> None:

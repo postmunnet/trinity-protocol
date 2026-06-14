@@ -10,6 +10,12 @@ RETRO_GLOBS = (
     ".claude/retrospectives/**/*.md",
     ".ai/retrospectives/**/*.md",
     ".trinity/retros/**/*.md",
+    # Canonical home of rrr-written retros (2026-06-12). Without this the
+    # signal scanned only legacy locations, so months-old retros dominated
+    # every lll Project Signal panel while the live 80+ retros were
+    # invisible. _retro_files sorts by the timestamp in the filename, so
+    # recency ranking keeps stale sources from outranking these.
+    ".ai/memory/retros/**/*.md",
 )
 
 SECTION_PATTERNS = {

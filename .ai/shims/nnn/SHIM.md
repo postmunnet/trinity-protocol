@@ -64,6 +64,27 @@ estimates, sequencing, and explicit risks. `nnn` is the deliverable that
 - Suggest steps that violate boundaries (`.ai/policies/**`, auto-deploy)
 - Decide approval ("I think this is fine") — that's `decided_by: human`
 
+## Budget override (NEEDS_HUMAN path)
+
+When the plan's estimates exceed `.ai/policies/loop-budget.yaml`
+defaults, `nnn` writes `budget_status: NEEDS_HUMAN` into SCOPE.md and
+refuses the transition. The operator (never the worker) may add a
+`budget_override` block to the plan envelope and re-run `nnn`:
+
+```json
+{
+  "budget_override": {
+    "max_duration_minutes": 90,
+    "decided_by": "human",
+    "reason": "discovery-heavy spike; scope bounded to X"
+  }
+}
+```
+
+Rules: `decided_by` MUST be `human` (Show-before-submit applies — draft
++ approval before the label), the reason must bound the scope, and the
+override lands in the audit chain via `nnn.proposed`.
+
 ## Output shape
 
 ```

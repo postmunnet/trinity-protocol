@@ -57,10 +57,35 @@ def load_policy_doc(project_root: Path) -> Dict[str, Any]:
     """
     p = (project_root / POLICY_FILE_PATH).resolve()
     if not p.is_file():
-        return {}
+        # Thin-client fallback (P0-3, 2026-06-10): missing project policy is
+        # no longer a SILENT empty dict. Prefer the kernel-shipped baseline
+        # (loud note); only when that is also absent fall back to {} with a
+        # loud warning so default-deny is a visible state, not a quiet one.
+        from .kernel_resource import resolve_ai_resource
+
+        fallback, source = resolve_ai_resource(
+            project_root, "policies/trinity_policy.yaml", label="policy"
+        )
+        if fallback is None:
+            import sys
+
+            print(
+                f"[trinity] policy: {p} missing and no kernel default — "
+                "policy engine running DEFAULT-DENY (Article XVI)",
+                file=sys.stderr,
+            )
+            return {}
+        p = fallback
     try:
         data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-    except (yaml.YAMLError, OSError):
+    except (yaml.YAMLError, OSError) as exc:
+        import sys
+
+        print(
+            f"[trinity] policy: failed to parse {p} ({exc}) — "
+            "policy engine running DEFAULT-DENY (Article XVI)",
+            file=sys.stderr,
+        )
         return {}
     if not isinstance(data, dict):
         return {}

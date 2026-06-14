@@ -33,6 +33,11 @@ def default_trinity_home(env: Optional[Dict[str, str]] = None) -> Path:
     raw = e.get("TRINITY_HOME")
     if raw:
         return Path(raw).expanduser().resolve()
+    # Runtime State Convention: honour an operator-declared runtime root
+    # (.ai/runtime.yaml) before falling back to the checkout location.
+    runtime_root = _declared_runtime_root(e)
+    if runtime_root is not None:
+        return runtime_root / ".trinity"
     return _default_workspace_root() / ".trinity"
 
 
@@ -41,7 +46,24 @@ def default_memory_home(env: Optional[Dict[str, str]] = None) -> Path:
     raw = e.get("MEMORY_HOME") or e.get("TRINITY_MEMORY_HOME")
     if raw:
         return Path(raw).expanduser().resolve()
+    runtime_root = _declared_runtime_root(e)
+    if runtime_root is not None:
+        return runtime_root / ".memory"
     return _default_workspace_root() / ".memory"
+
+
+def _declared_runtime_root(env: Dict[str, str]) -> Optional[Path]:
+    """Operator-declared runtime root via .ai/runtime.yaml (non-strict).
+
+    Returns None when nothing is declared so the legacy workspace fallback
+    still applies (keeps existing behaviour unbroken). TRINITY_HOME env is
+    intentionally NOT consulted here — the callers above already handle their
+    own env keys with legacy semantics.
+    """
+    from .runtime_home import resolve_runtime_home
+
+    env_without_trinity_home = {k: v for k, v in env.items() if k != "TRINITY_HOME"}
+    return resolve_runtime_home(env=env_without_trinity_home, strict=False)
 
 
 def _default_workspace_root() -> Path:
@@ -122,7 +144,10 @@ class ProjectRegistry:
             project_id = slug
             created_at = _utc_now()
 
-        memory_db_path = memory_home / "db" / f"{slug}.db"
+        # Doctrine (retro-0060): evidence DB is project-local (matches
+        # tools_registry._tool_env); central memory keeps only the
+        # federation registry, never per-project sqlite files.
+        memory_db_path = root / ".ai" / ".memory" / "memory.sqlite"
         now = _utc_now()
         with self._connect() as con:
             con.execute(

@@ -375,6 +375,8 @@ def new(name: str):
 
 📂 **Structure:**
 ├── THINK/          Context & Acceptance Criteria
+├── SANDBOX/        Agent workspaces (00_BRAINSTORM · 01_DEBATE ·
+│                   02_gemini · 03_claude · 04_codex)
 ├── DO/
 │   ├── snapshot/   (immutable backup)
 │   ├── dev/        (working copy)
@@ -383,7 +385,8 @@ def new(name: str):
 │   ├── META.json
 │   ├── VERIFY.md
 │   └── LIVE_MONITOR.md
-└── .ai/state/      System state (never edit)
+├── CAPTURE/        capture.sqlite + blobs (RecordProxy)
+└── .state/         Session-local state (never edit)
 
 🎯 **Next Step:**
    {next_line}
@@ -391,3 +394,88 @@ def new(name: str):
 📝 **Optional:**
    Edit THINK/00_CONTEXT.md to define your goals
 """, title="🌌 Trinity Phase 6", border_style="green"))
+
+
+@app.command()
+def switch(ident: str):
+    """
+    Switch the global current_session pointer to another session capsule.
+
+    Accepts a session id (folder name under .ai/sessions/) or a full path.
+    Refuses archived capsules — rituals must not run on archived sessions.
+    Appends a `session.switched` audit event so pointer moves are traceable.
+
+    Replaces the error-prone manual edit of .ai/state/status.json
+    (current_session is a top-level key; `ai close` sets it to null).
+
+    Example: ai session switch 0001_2026-06-12_17_43_pm_feat-audit-...
+    """
+    from ..core.session_resolver import (
+        SessionNotFoundError,
+        SessionsContainerError,
+        resolve_explicit_session,
+    )
+    from ..core.ssot import SSOTLoader
+
+    try:
+        loader = SSOTLoader(Path.cwd())
+        config = loader.load()
+        state_mgr = StateManager(config)
+    except Exception as e:
+        console.print(f"[red]Error loading SSOT:[/red] {e}")
+        raise typer.Exit(1)
+
+    try:
+        target = resolve_explicit_session(config.project_root, ident)
+    except SessionsContainerError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(2)
+    except SessionNotFoundError as e:
+        console.print(f"[red]Session not found:[/red] {ident}")
+        for c in e.candidates:
+            console.print(f"  searched: {c}")
+        raise typer.Exit(2)
+
+    # Archived capsules are immutable evidence — switching the pointer to
+    # one would let rituals mutate an archived session.
+    if target.name.endswith(".archive") or target.parent.name == "archive":
+        console.print(
+            f"[red]Refusing to switch to archived session:[/red] {target.name}\n"
+            "Archived capsules are immutable; start a new session instead."
+        )
+        raise typer.Exit(2)
+
+    current_status = state_mgr.load_status()
+    previous = current_status.get("current_session")
+    resolved = str(target.resolve())
+
+    if previous == resolved:
+        console.print(f"[yellow]Already on session:[/yellow] {target.name}")
+        raise typer.Exit(0)
+
+    current_status["current_session"] = resolved
+    state_mgr.save_status(current_status)
+
+    try:
+        chain = get_chain_for_project(config.project_root)
+        chain.append(
+            "session.switched",
+            {
+                "session_id": target.name,
+                "from": previous,
+                "to": resolved,
+                "decided_by": "human",
+            },
+        )
+    except Exception as e:
+        console.print(f"[yellow]⚠ audit chain append failed: {e}[/yellow]")
+
+    next_action = compute_next(config.project_root, session_path=target)
+    next_line = render_one_line(next_action)
+    console.print(Panel(
+        f"[green]✅ Switched current_session[/green]\n\n"
+        f"from: {previous or '(none)'}\n"
+        f"to:   {resolved}\n\n"
+        f"{next_line}",
+        title="🔀 session switch", border_style="green",
+    ))

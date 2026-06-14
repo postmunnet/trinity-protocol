@@ -104,9 +104,20 @@ CANONICAL_EVENT_TYPES: frozenset[str] = frozenset({
     "lll.invoked",
     "snapshot.created",
     "ritual_constitution.ratified",
+    # Pre-epoch (bootstrap installer) era events — real chains start with
+    # these (vape24 prefix, 2026-06-10)
+    "genesis",
+    "scaffold_complete",
+    "integration_merge",
 })
 
 GENESIS_PREV_HASH = "0"
+# Pre-epoch tolerance (2026-06-10): chains born under the bootstrap installer
+# start with prev_hash "genesis" and hash their events with
+# json.dumps(sort_keys=True) DEFAULT separators (spaces) — proven against
+# vape24's real prefix. Both eras verify with full sha256 recomputation;
+# nothing is ever rewritten (append-only).
+GENESIS_PREV_HASHES = {GENESIS_PREV_HASH, "genesis"}
 EXIT_OK = 0
 EXIT_SCHEMA_OR_UNKNOWN_TYPE = 1
 EXIT_CHAIN_BROKEN = 2
@@ -154,12 +165,25 @@ def _event_for_hash_legacy(row: dict) -> dict:
     return {k: v for k, v in row.items() if k != "hash"}
 
 
+def _canonical_json_pre_epoch(obj) -> str:
+    """Bootstrap-installer era canonical form — sorted keys, DEFAULT
+    separators (", " / ": "), ascii-escaped. Matches the recipe found on
+    real pre-epoch chains (vape24 prefix, 2026-06-10)."""
+    return json.dumps(obj, sort_keys=True)
+
+
 def _recompute_hash(event_for_hash: dict, chain_kind: str) -> str:
     if chain_kind == "session":
         canonical = _canonical_json_session(event_for_hash)
     else:
         canonical = _canonical_json_legacy(event_for_hash)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _recompute_hash_pre_epoch(event_for_hash: dict) -> str:
+    return hashlib.sha256(
+        _canonical_json_pre_epoch(event_for_hash).encode("utf-8")
+    ).hexdigest()
 
 
 # ─────────────── readers ───────────────
@@ -229,6 +253,7 @@ def verify_chain(
     errors: list[str] = []
     expected_prev = GENESIS_PREV_HASH
     expected_seq = 1
+    pre_epoch_count = 0
 
     for idx, row in enumerate(events):
         # 1. Per-session schema requires seq monotonicity.
@@ -243,6 +268,8 @@ def verify_chain(
 
         # 2. prev_hash linkage.
         actual_prev = row.get("prev_hash")
+        if idx == 0 and chain_kind == "legacy" and actual_prev in GENESIS_PREV_HASHES:
+            expected_prev = actual_prev  # pre-epoch genesis marker accepted
         if actual_prev != expected_prev:
             seq_label = row.get("seq") if chain_kind == "session" else idx
             errors.append(
@@ -258,6 +285,12 @@ def verify_chain(
                 efh = _event_for_hash_legacy(row)
             recomputed = _recompute_hash(efh, chain_kind)
             stored = row.get("hash", "")
+            if recomputed != stored and chain_kind == "legacy":
+                # Pre-epoch recipe fallback — still a full sha256 over the
+                # entire event body, so authenticity strength is identical.
+                if _recompute_hash_pre_epoch(efh) == stored:
+                    recomputed = stored
+                    pre_epoch_count += 1
             if recomputed != stored:
                 seq_label = row.get("seq") if chain_kind == "session" else idx
                 errors.append(

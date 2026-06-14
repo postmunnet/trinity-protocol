@@ -9,7 +9,7 @@
 
 version: "1.0"
 name: standard
-description: "Default session lifecycle: sss -> vvv -> nnn -> gogogo -> ddd -> rrr"
+description: "Default session lifecycle: sss -> vvv -> nnn -> gogogo -> rrr, with optional ddd before rrr for deploy-bound sessions"
 
 states:
   - READY
@@ -66,4 +66,11 @@ transitions:
   - from: RETRO
     to: DONE
     trigger: rrr_complete
+    decided_by: kernel
+
+  # Non-deploy closure path: documentation/refactor/admin sessions can
+  # close after verification without a human deploy decision.
+  - from: VERIFIED
+    to: RETRO
+    trigger: rrr
     decided_by: kernel

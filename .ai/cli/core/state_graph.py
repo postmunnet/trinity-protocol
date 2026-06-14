@@ -96,7 +96,7 @@ class StateTransition:
             )
 
 
-# ─────────── STANDARD_TRANSITIONS — T1..T8 mirror of standard.yaml ───────────
+# ─────────── STANDARD_TRANSITIONS — mirror of standard.yaml ───────────
 
 STANDARD_TRANSITIONS: List[StateTransition] = [
     StateTransition(
@@ -156,6 +156,16 @@ STANDARD_TRANSITIONS: List[StateTransition] = [
         trigger="rrr_complete",
         decided_by="kernel",
         notes="T8 — retro accepted; RETRO→DONE (terminal)",
+    ),
+    StateTransition(
+        from_state="VERIFIED",
+        to_state="RETRO",
+        trigger="rrr",
+        decided_by="kernel",
+        notes=(
+            "T8a — non-deploy closure path; VERIFIED→RETRO lets "
+            "documentation/refactor/admin sessions close without ddd"
+        ),
     ),
 ]
 

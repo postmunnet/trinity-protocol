@@ -173,6 +173,13 @@ def test_find_transition_canonical_lookup() -> None:
     assert t.decided_by == "human"
 
 
+def test_find_transition_verified_rrr_nondeploy_lookup() -> None:
+    t = find_transition("VERIFIED", "rrr")
+    assert t is not None
+    assert t.to_state == "RETRO"
+    assert t.decided_by == "kernel"
+
+
 def test_find_transition_returns_none_on_unknown_trigger() -> None:
     assert find_transition("VERIFIED", "nonsense_trigger") is None
 

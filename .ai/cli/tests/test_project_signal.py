@@ -72,3 +72,53 @@ def test_project_signal_sorts_retros_by_filename_timestamp(tmp_path: Path) -> No
 
     assert signal["sources"][0] == ".claude/retrospectives/2026-05/0006_2026-05-16_03_40_am_feat-new.md"
     assert signal["pending"][0]["text"] == "new pending"
+
+
+def test_project_signal_sees_ai_memory_retros(tmp_path: Path) -> None:
+    """Canonical rrr retros (.ai/memory/retros/) are scanned (2026-06-12).
+
+    Before the glob was added, only legacy locations were read, so a
+    months-old .claude/retrospectives file dominated lll's Project Signal
+    forever while live retros were invisible.
+    """
+    proj = tmp_path / "proj"
+    stale = proj / ".claude" / "retrospectives" / "2025-12_old.md"
+    stale.parent.mkdir(parents=True)
+    stale.write_text(
+        "# Old\n\n## Pending Items\n\n- [ ] STALE deploy plan\n",
+        encoding="utf-8",
+    )
+    fresh = (
+        proj / ".ai" / "memory" / "retros"
+        / "0090_2026-06-12_9_00_pm_feat-fresh.md"
+    )
+    fresh.parent.mkdir(parents=True)
+    fresh.write_text(
+        "# Retro\n\n## Pending Items\n\n- [ ] FRESH follow-up\n",
+        encoding="utf-8",
+    )
+
+    signal = collect_project_signal(proj)
+
+    assert signal["available"] is True
+    texts = [row["text"] for row in signal["pending"]]
+    assert any("FRESH" in t for t in texts), texts
+    # fresh file (named timestamp) must rank before the stale undated one
+    assert signal["sources"][0].endswith("0090_2026-06-12_9_00_pm_feat-fresh.md")
+
+
+def test_project_signal_max_files_bound_drops_oldest(tmp_path: Path) -> None:
+    proj = tmp_path / "proj"
+    retros = proj / ".ai" / "memory" / "retros"
+    retros.mkdir(parents=True)
+    # 9 dated retros — bound is 8, the oldest must fall out of sources.
+    for i in range(9):
+        day = i + 1
+        (retros / f"00{i:02d}_2026-06-{day:02d}_1_00_pm_feat-x.md").write_text(
+            f"# R\n\n## Pending Items\n\n- [ ] item {i}\n", encoding="utf-8"
+        )
+
+    signal = collect_project_signal(proj)
+
+    assert len(signal["sources"]) == 8
+    assert not any("2026-06-01" in s for s in signal["sources"])

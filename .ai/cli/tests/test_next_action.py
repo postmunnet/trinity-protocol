@@ -49,9 +49,10 @@ def test_no_session_routes_to_session_new(tmp_path: Path):
         ("READY",     False, False, "ai vvv"),
         ("THINK",     False, False, "ai vvv"),                # markers missing
         ("THINK",     True,  False, "ai nnn"),                # vvv done, plan up next
+        ("SANDBOX",   True,  False, "ai nnn"),                # vvv_pass fired THINK→SANDBOX, plan not committed yet
         ("SANDBOX",   True,  True,  "ai gogogo"),
         ("DO",        True,  True,  "ai gogogo"),
-        ("VERIFIED",  True,  True,  "ai ddd"),
+        ("VERIFIED",  True,  True,  "ai rrr"),
         ("PROMOTED",  True,  True,  "ai ddd"),
         ("DEPLOYED",  True,  True,  "ai rrr"),
         ("RETRO",     True,  True,  "ai rrr"),
@@ -87,11 +88,13 @@ def test_dead_state_is_terminal(tmp_path: Path):
     assert a.terminal is True
 
 
-def test_verified_state_is_blocked_human(tmp_path: Path):
+def test_verified_state_defaults_to_nondeploy_rrr(tmp_path: Path):
     sess = _seed_session(tmp_path, graph_state="VERIFIED")
     a = compute(tmp_path, session_path=sess)
-    assert a.blocked is True
+    assert a.command == "ai rrr"
+    assert a.blocked is False
     assert a.terminal is False
+    assert "ddd" in a.why
 
 
 def test_promoted_state_is_blocked_human(tmp_path: Path):

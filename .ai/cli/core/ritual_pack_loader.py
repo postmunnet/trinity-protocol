@@ -100,6 +100,21 @@ def _self_heal_pack_files(pack_dir: Path) -> List[str]:
         pack_real = pack_dir.resolve(strict=True)
     except (OSError, RuntimeError):
         return []
+    # Fast path (P1, 2026-06-10): one `git diff --quiet` for the whole pack
+    # dir replaces 4 per-file `git show` spawns on the ~99% clean path.
+    # Dirty or any git hiccup falls through to the existing full loop.
+    try:
+        rel_dir = pack_real.relative_to(repo_root)
+        clean = subprocess.run(
+            ["git", "-C", str(repo_root), "diff", "--quiet", "HEAD", "--",
+             rel_dir.as_posix()],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode == 0
+        if clean:
+            return []
+    except (ValueError, OSError):
+        pass
     restored: List[str] = []
     for fname in _PACK_FILES:
         fpath = pack_real / fname
@@ -159,6 +174,17 @@ def load_pack(
     `validate_pack_schemas` for that (separate concern).
     """
     pack_dir = Path(rituals_root) / ritual
+    if not pack_dir.is_dir():
+        # Thin-client fallback (mirrors TemplateLoader.from_ssot, retro-0061):
+        # a thin-linked project strips its vendored `.ai/rituals`, so the
+        # caller-supplied project-local pack is absent. Fall back to the
+        # kernel's own packs (this file lives at <kernel>/.ai/cli/core/, so
+        # parents[2] is the kernel `.ai`). Without this the ritual runs
+        # un-audited — the caller swallows PackNotFoundError and the audit
+        # chain never appends (retro-0062, silent integrity hole).
+        kernel_pack = Path(__file__).resolve().parents[2] / "rituals" / ritual
+        if kernel_pack.is_dir():
+            pack_dir = kernel_pack
     if not pack_dir.is_dir():
         raise PackNotFoundError(f"ritual pack directory not found: {pack_dir}")
     # Defensive: external writers (sibling CLIs, editor plugins, sync scripts)

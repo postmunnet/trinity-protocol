@@ -65,10 +65,18 @@ def _minimal_manifest(name: str = "memory-cli") -> dict:
 
 
 def test_no_env_unchanged(tmp_path, monkeypatch):
-    """Gate (a): no TRINITY_SIBLINGS_ROOT -> registry equals legacy-only path."""
+    """Gate (a): no TRINITY_SIBLINGS_ROOT -> registry equals legacy-only path.
+
+    2026-06-12: load_registry grew a kernel-source discovery fallback for
+    thin clients (fires only when tools.yaml absent + env unset). Gate (a)
+    asserts the ENV layer stays opt-in, so neutralize the kernel-source
+    layer here; its own behavior is covered in test_tools_registry.py.
+    """
     monkeypatch.delenv("TRINITY_SIBLINGS_ROOT", raising=False)
+    from cli.core import tools_registry as _tr
+    monkeypatch.setattr(_tr, "_kernel_sibling_roots", lambda: [])
     # Empty project_root -> no .ai/tools.yaml -> empty registry. The point
-    # is that with no env, discover_siblings is never invoked.
+    # is that with no env, the env-layer discover_siblings is never invoked.
     project_root = tmp_path / "proj"
     project_root.mkdir()
     reg = load_registry(project_root)

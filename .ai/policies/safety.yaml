@@ -108,3 +108,24 @@ friend_rules:
   - rule: "Browser Automation"
     risk: "HIGH"
     check: "Manual Approval Required"
+
+# ── LLM sibling cost guards ──────────────────────────────────────────
+# Adopted 2026-06-10 by operator command (Claude Code session) from the
+# SANDBOX proposal of session p2-distribution-readiness
+# (PROPOSAL_cost_guard_rules.md). Closes the registry/policy disagreement:
+# .ai/tools.yaml registers judge-cli + seo-genie-cli as policy-gated
+# "cost guard required" but no rule bounded their spend until this block.
+# decided_by: human
+# Enforcement note: the policy engine reads this file; per-invocation cap
+# enforcement lands in each sibling's entrypoint (they read their own
+# config) — until then this block is the declared bound the siblings and
+# audits are held against.
+llm_sibling_guards:
+  judge-cli:
+    max_invocations_per_session: 3      # mirrors Pyramid layer-3 "max 3/session"
+    max_panel_size: 3
+    require_session: true               # refuse outside an active Trinity session
+  seo-genie-cli:
+    max_invocations_per_session: 10
+    max_batch_items: 25
+    require_session: false              # operator tool, kernel never calls it

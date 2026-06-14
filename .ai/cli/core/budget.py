@@ -60,9 +60,20 @@ class Budget:
         )
 
     def _load(self) -> Dict[str, Any]:
-        if not self.policy_path.exists():
+        path = self.policy_path
+        if not path.exists() and self.project_root is not None:
+            # Thin-client fallback (P0-3, 2026-06-10): linked projects strip
+            # .ai/policies — fall back loudly to the kernel-shipped budget.
+            from .kernel_resource import resolve_ai_resource
+
+            fallback, _source = resolve_ai_resource(
+                self.project_root, "policies/loop-budget.yaml", label="budget"
+            )
+            if fallback is not None:
+                path = fallback
+        if not path.exists():
             raise FileNotFoundError(f"loop-budget not found: {self.policy_path}")
-        with self.policy_path.open("r", encoding="utf-8") as f:
+        with path.open("r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
 
     def effective_caps(self, graph_name: str) -> Dict[str, int]:

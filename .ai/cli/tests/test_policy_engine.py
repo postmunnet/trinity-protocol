@@ -147,8 +147,23 @@ def test_query_engine_version_default_when_missing() -> None:
 # ─── doc loader ──────────────────────────────────────────────────────
 
 
-def test_load_policy_doc_returns_dict_on_missing(tmp_path: Path) -> None:
-    # No .ai/policies/trinity_policy.yaml under tmp_path → {} fallback
+def test_load_policy_doc_missing_falls_back_to_kernel_baseline(tmp_path: Path) -> None:
+    # P0-3 (2026-06-10): missing project policy is no longer a silent {} —
+    # the kernel-shipped baseline is used (loudly). Default-deny {} remains
+    # only when the kernel baseline is absent too (covered below).
+    doc = load_policy_doc(tmp_path)
+    assert isinstance(doc, dict)
+    assert doc != {}
+
+
+def test_load_policy_doc_default_deny_when_kernel_baseline_absent(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from cli.core import kernel_resource
+
+    monkeypatch.setattr(
+        kernel_resource, "_KERNEL_AI_ROOT", tmp_path / "no-kernel-here"
+    )
     assert load_policy_doc(tmp_path) == {}
 
 

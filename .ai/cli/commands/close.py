@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.panel import Panel
 from ..core.next_action import compute as compute_next, render_one_line
 from ..core.state import StateManager, SessionLocalState
+from ..core.terminal_states import get_terminal_states_for_close
 from ..core.ssot import SSOTLoader
 from ..core.audit import get_chain_for_project
 from ..core.ritual_pack_loader import (
@@ -27,6 +28,11 @@ console = Console()
 def callback(
     ctx: typer.Context,
     force: bool = typer.Option(False, "--force", help="Force-close even if gates fail"),
+    reason: Optional[str] = typer.Option(
+        None,
+        "--reason",
+        help="Operator justification — REQUIRED with --force. Audited as close.forced.",
+    ),
     with_synthesis: bool = typer.Option(
         False,
         "--with-synthesis",
@@ -47,6 +53,7 @@ def callback(
         return
     _run_impl(
         force=force,
+        reason=reason,
         with_synthesis=with_synthesis,
         hmac_envelope_file=hmac_envelope_file,
     )
@@ -54,6 +61,11 @@ def callback(
 @app.command()
 def run(
     force: bool = False,
+    reason: Optional[str] = typer.Option(
+        None,
+        "--reason",
+        help="Operator justification — REQUIRED with --force. Audited as close.forced.",
+    ),
     with_synthesis: bool = typer.Option(
         False,
         "--with-synthesis",
@@ -75,7 +87,8 @@ def run(
     """
     Close current session and archive.
 
-    Phase 6 Requirement: Prod verify must PASS before close.
+    Phase 6 Requirement: Prod verify must PASS before close for deploy-bound
+    sessions. Non-deploy DONE sessions can archive without prod verification.
     Exit codes:
       0 = Success
       1 = Gate failed (verification not passed)
@@ -83,6 +96,7 @@ def run(
     """
     _run_impl(
         force=force,
+        reason=reason,
         with_synthesis=with_synthesis,
         hmac_envelope_file=hmac_envelope_file,
     )
@@ -91,9 +105,18 @@ def run(
 def _run_impl(
     *,
     force: bool = False,
+    reason: Optional[str] = None,
     with_synthesis: bool = False,
     hmac_envelope_file: Optional[Path] = None,
 ) -> None:
+    # D2 — --force is an operator override of the close gates; it MUST carry
+    # an audited justification. No silent skeleton key.
+    if force and not (reason and reason.strip()):
+        console.print(
+            "[red]close --force requires --reason \"...\" — "
+            "the override justification is audited (close.forced).[/red]"
+        )
+        raise typer.Exit(2)
     try:
         loader = SSOTLoader(Path.cwd())
         config = loader.load()
@@ -137,9 +160,11 @@ def _run_impl(
         rituals_root=config.project_root / ".ai" / "rituals",
     )
 
+    chain = get_chain_for_project(config.project_root)
+
     # Emit pack-declared close.invoked as the first ritual-side audit
     # event — before any state mutation (Article XX).
-    get_chain_for_project(config.project_root).append(
+    chain.append(
         "close.invoked",
         {
             "session_id": session_path.name,
@@ -148,12 +173,30 @@ def _run_impl(
         },
     )
 
+    # D2 — a forced close records its audited justification as a distinct
+    # event so the override is never invisible. decided_by:operator (the
+    # --reason came from the operator), source marks it as a CLI flag —
+    # NOT a proof of verified human authority (cf. rrr --accept-debt).
+    if force:
+        chain.append(
+            "close.forced",
+            {
+                "session_id": session_path.name,
+                "decided_by": "operator",
+                "reason": reason,
+                "source": "cli_flag",
+            },
+        )
+
     # Gate 1: the standard graph must be terminal before archive. Prod
     # verification alone is not enough; close is the ritual after rrr.
     if not force:
         sls = SessionLocalState(session_path)
         graph_state = sls.graph_state(default=sls.current_state())
-        if graph_state not in {"DONE", "DEAD"}:
+        # Terminal vocabulary is derived from the canonical graph (single
+        # source of truth — see core/terminal_states.py). No literal set here.
+        terminal_states = get_terminal_states_for_close(config.project_root)
+        if graph_state not in terminal_states:
             action = render_one_line(
                 compute_next(
                     config.project_root,
@@ -162,28 +205,28 @@ def _run_impl(
                 )
             )
             console.print("[bold red]🚨 GATE LOCK:[/bold red] Session graph is not terminal")
-            console.print(f"   graph_state={graph_state!r}; close requires DONE or DEAD")
+            console.print(
+                f"   graph_state={graph_state!r}; close requires one of "
+                f"{sorted(terminal_states)}"
+            )
             console.print(f"   {action}")
             raise typer.Exit(1)
 
-    # Gate 2: Prod verify must PASS (prefer session-local, fallback to legacy)
+    prod_verification_summary = "SKIPPED (--force)"
+
+    # Gate 2: Prod verify must PASS for deploy-bound sessions only.
+    # Non-deploy work (docs/refactors/admin tasks) reaches DONE via
+    # VERIFIED→RETRO→DONE and has no prod artifact to verify.
     if not force:
-        sls = SessionLocalState(session_path)
-        if not sls.prod_verified():
-            # fallback legacy
-            legacy = session_path / ".ai" / "state" / "verify_report.json"
-            ok = False
-            if legacy.exists():
-                try:
-                    with legacy.open("r", encoding="utf-8") as f:
-                        r = json.load(f)
-                    ok = r.get("scope") == "prod" and r.get("passed") is True
-                except Exception:
-                    ok = False
-            if not ok:
+        deploy_bound = _session_is_deploy_bound(chain, session_path.name)
+        if deploy_bound:
+            prod_verification_summary = "PASSED"
+            if not _session_prod_verified(session_path):
                 console.print("[bold red]🚨 GATE LOCK:[/bold red] Prod verification not passed")
-                console.print("   Run [yellow]ai verify prod[/yellow] first or use --force")
+                console.print("   Deploy-bound session: run [yellow]ai verify prod[/yellow] first or use --force")
                 raise typer.Exit(1)
+        else:
+            prod_verification_summary = "SKIPPED (non-deploy)"
 
     # Part 2 (capture wiring): open a capture for close's pre-archive
     # work. MUST exit the with-block BEFORE archive_session — archive
@@ -224,13 +267,51 @@ def _run_impl(
         f"Session: {session_path.name}\n"
         f"Archived: {archive_path}\n\n"
         f"[bold]Summary:[/bold]\n"
-        f"• Prod verification: PASSED\n"
+        f"• Prod verification: {prod_verification_summary}\n"
         f"• State: DONE\n"
         f"• Archive location: {archive_dir}\n\n"
         f"{next_line}"
     )
     console.print(Panel(summary, title="🏁 Session Closed", border_style="green"))
     return
+
+
+def _session_is_deploy_bound(chain, session_id: str) -> bool:
+    """Return True when audit evidence shows this session shipped a deploy.
+
+    `promote_request` alone is not enough: a promoted session may still be
+    held before deployment. `deploy_request` and `ddd.completed` are the
+    deploy-bound anchors that keep prod verification mandatory.
+    """
+    for event in chain.iter_events():
+        details = event.get("details") or {}
+        if details.get("session_id") != session_id:
+            continue
+        if event.get("type") == "ddd.completed":
+            return True
+        if (
+            event.get("type") == "graph.transition"
+            and details.get("trigger") == "deploy_request"
+        ):
+            return True
+    return False
+
+
+def _session_prod_verified(session_path: Path) -> bool:
+    """Check prod verification from session-local state, then legacy report."""
+    sls = SessionLocalState(session_path)
+    if sls.prod_verified():
+        return True
+
+    legacy = session_path / ".ai" / "state" / "verify_report.json"
+    if not legacy.exists():
+        return False
+    try:
+        with legacy.open("r", encoding="utf-8") as f:
+            report = json.load(f)
+    except Exception:
+        return False
+    return report.get("scope") == "prod" and report.get("passed") is True
 
 
 def _invoke_presentation_synthesizer(session_path: Path, project_root: Path) -> Optional[Path]:
@@ -284,19 +365,15 @@ def _close_pre_archive(session_path: Path, config, cap) -> None:
         with open(meta_file, "w") as f:
             json.dump(meta, f, indent=2)
 
-    # Update session-local state to DONE
-    try:
-        sls = SessionLocalState(session_path)
-        # move to DONE if VERIFIED or already DONE
-        cur = sls.current_state()
-        if cur != "DONE":
-            # allow VERIFIED -> DONE; if other states, still attempt per force flag
-            try:
-                sls.set_state("DONE")
-            except Exception:
-                pass
-    except Exception:
-        pass
+    # close is a Seal/Archive layer — it MUST NOT manufacture a DONE
+    # workflow state. DONE is owned by rrr (RETRO -> DONE, decided_by:kernel).
+    # close preserves the incoming terminal graph state (DONE stays DONE,
+    # DEAD stays DEAD) and seals/archives it as-is. The gate already requires
+    # a terminal state for non-force closes; under --force we still record the
+    # real state rather than overwriting it to DONE.
+    # (F3 + F3b, session close-P0-safety 2026-06-14)
+    sls = SessionLocalState(session_path)
+    graph_state_final = sls.graph_state(default=sls.current_state())
 
     # Phase 13 wiring — render CLOSE_PACK.md so it travels with the
     # archive. Fail-soft: close MUST NOT abort if the renderer trips
@@ -315,14 +392,34 @@ def _close_pre_archive(session_path: Path, config, cap) -> None:
     try:
         tier = manifest_module.resolve_tier(session_path)
     except Exception as e:
-        console.print(f"[yellow]⚠ tier resolution failed: {e}; defaulting to WARM[/yellow]")
-        tier = "WARM"
+        # G15 — fail-closed. A session whose tier cannot be resolved must NOT
+        # be archived under a guessed WARM default: WARM skips external audit,
+        # so a mis-resolved COLD session would silently lose its compliance
+        # trail. Escalate NEEDS_HUMAN (exit 3) rather than fail-open.
+        console.print(f"[bold red]🚨 tier resolution failed:[/bold red] {e}")
+        console.print(
+            "   close cannot safely seal a session with unknown tier; "
+            "escalating NEEDS_HUMAN (exit 3)"
+        )
+        try:
+            get_chain_for_project(config.project_root).append(
+                "close.failed",
+                {
+                    "session_id": session_path.name,
+                    "decided_by": "kernel",
+                    "reason": "tier_resolution_failed",
+                    "error": str(e)[:500],
+                },
+            )
+        except Exception:
+            pass
+        raise typer.Exit(3)
 
     final_manifest: dict = {}
     manifest_path = session_path / "CONTROL" / "final_manifest.yaml"
     try:
         final_manifest = manifest_module.build_final_manifest(
-            session_path, tier, graph_state_final="DONE"
+            session_path, tier, graph_state_final=graph_state_final
         )
         # Write as YAML if available, JSON otherwise. The on-disk file
         # location is .yaml per Close Spec §2.

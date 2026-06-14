@@ -94,6 +94,15 @@ def callback(
         "--dry-run",
         help="Preview the plan without audit/capture writes or graph transitions",
     ),
+    accept_failed_check: Optional[str] = typer.Option(
+        None,
+        "--accept-failed-check",
+        help="Required when the pre-transition deploy_check verdict is "
+        "DEAD/RETRY: explicit human reason for proceeding despite a "
+        "hard-failed check (recorded as ddd.accepted_failed_check). "
+        "NEEDS_HUMAN does not require it — running ddd IS the human "
+        "decision.",
+    ),
     hmac_envelope_file: Optional[Path] = typer.Option(
         None,
         "--hmac-envelope-file",
@@ -114,6 +123,7 @@ def callback(
         skip_verify=skip_verify,
         dry_run=dry_run,
         hmac_envelope_file=hmac_envelope_file,
+        accept_failed_check=accept_failed_check,
     )
     raise typer.Exit(code=code)
 
@@ -179,6 +189,7 @@ def _run(
     skip_verify: bool,
     dry_run: bool,
     hmac_envelope_file: Optional[Path] = None,
+    accept_failed_check: Optional[str] = None,
 ) -> int:
     from ..core.recordproxy import capture
     if target not in {"dev", "prod"}:
@@ -227,6 +238,7 @@ def _run(
             project_root=project_root,
             session_path=session_path,
             cap=cap,
+            accept_failed_check=accept_failed_check,
         )
 
 
@@ -242,6 +254,7 @@ def _ddd_inner(
     project_root,
     session_path,
     cap,
+    accept_failed_check: Optional[str] = None,
 ) -> int:
     loop = Loop(
         session_path,
@@ -407,6 +420,64 @@ def _ddd_inner(
             "hmac_nonce": envelope.get("nonce"),
             "hmac_user_id": hmac_user_id,
         }
+
+    # 1.5 — pre-transition deploy_check gate (P1, 2026-06-10).
+    # The post-hoc evaluation (step 5) stays informational, but a HARD
+    # failure (DEAD/RETRY) now requires an explicit human override so the
+    # audit chain can distinguish "saw the failure, accepted the risk"
+    # from "never looked". NEEDS_HUMAN passes: running ddd with --reason
+    # IS the human decision the verdict asks for.
+    if not skip_verify:
+        try:
+            _gate_rules = load_rules(project_root)
+            _gate_evidence: Dict[str, Any] = {}
+            if evidence_file:
+                _gate_evidence = json.loads(
+                    Path(evidence_file).read_text(encoding="utf-8")
+                )
+            _gate_verdict = evaluate_step(
+                step={},
+                rule_set_name="deploy_check",
+                rules_doc=_gate_rules,
+                extra_evidence=_gate_evidence,
+            )
+            if _gate_verdict.verdict in ("DEAD", "RETRY"):
+                if not accept_failed_check:
+                    loop.chain.append(
+                        "ddd.refused_failed_check",
+                        {
+                            "session_id": session_path.name,
+                            "target": target,
+                            "verdict": _gate_verdict.verdict,
+                            "verifier_reason": _gate_verdict.reason,
+                            "decided_by": "verifier",
+                        },
+                    )
+                    console.print(
+                        f"[red]ddd refused — deploy_check verdict is "
+                        f"{_gate_verdict.verdict} ({_gate_verdict.reason}).\n"
+                        f"Proceed only with an explicit override:\n"
+                        f"  ai ddd --target={target} "
+                        f"--accept-failed-check '<why this risk is accepted>'[/red]"
+                    )
+                    return 3
+                loop.chain.append(
+                    "ddd.accepted_failed_check",
+                    {
+                        "session_id": session_path.name,
+                        "target": target,
+                        "verdict": _gate_verdict.verdict,
+                        "verifier_reason": _gate_verdict.reason,
+                        "override_reason": accept_failed_check,
+                        "decided_by": "human",
+                    },
+                )
+                console.print(
+                    f"[yellow]deploy_check {_gate_verdict.verdict} overridden "
+                    f"by human: {accept_failed_check}[/yellow]"
+                )
+        except VerifierError:
+            pass  # post-hoc step 5 reports verifier errors; gate stays open
 
     # 2. promote
     cur = loop.fire(

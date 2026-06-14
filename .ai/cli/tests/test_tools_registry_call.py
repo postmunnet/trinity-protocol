@@ -49,8 +49,14 @@ def test_load_registry_parses_existing_tools_yaml():
         f"bin path {entry.path} should resolve under or sibling-of repo root"
 
 
-def test_load_registry_missing_tools_yaml_returns_empty(tmp_path: Path):
-    # No .ai/tools.yaml in a fresh tmp dir
+def test_load_registry_missing_tools_yaml_returns_empty(tmp_path: Path, monkeypatch):
+    # No .ai/tools.yaml in a fresh tmp dir AND no kernel-source siblings →
+    # empty. (2026-06-12: load_registry grew a kernel-source manifest
+    # discovery fallback for thin clients; neutralize it here to keep this
+    # test's original intent — see test_tools_registry.py fallback tests.)
+    from cli.core import tools_registry as _tr
+    monkeypatch.delenv("TRINITY_SIBLINGS_ROOT", raising=False)
+    monkeypatch.setattr(_tr, "_kernel_sibling_roots", lambda: [])
     reg = load_registry(tmp_path)
     assert reg == {}
 

@@ -70,6 +70,11 @@ class ToolEntry:
     # points at the originating manifest file when source="manifest".
     source: str = "legacy"
     manifest_path: Optional[Path] = None
+    # Constitutional boundary (kernel = control, intelligence = sibling):
+    # entries declaring `kernel_invocable: false` (e.g. memory-semantic-cli)
+    # are listable/inspectable but the kernel dispatcher REFUSES to run them.
+    # Enforced in call() since 2026-06-10 (P2) — was declaration-only before.
+    kernel_invocable: bool = True
 
 
 class SiblingDuplicateError(Exception):
@@ -104,6 +109,25 @@ class ToolNotFound(Exception):
 
 def _expand(token: str, project_root: Path) -> str:
     return token.replace("${project_root}", str(project_root))
+
+
+def _kernel_sibling_roots() -> List[Path]:
+    """Candidate sibling roots derived from the kernel's own location.
+
+    Thin-client fallback (2026-06-12): linked projects strip `.ai/tools.yaml`
+    along with the rest of the vendored `.ai`, so project-local resolution
+    yields an empty registry and ritual auto-feeds (e.g. rrr → memory-cli)
+    degrade. The kernel always knows where it lives, and both deployment
+    layouts keep manifest-declaring siblings at a fixed offset from it:
+
+      monorepo:      <root>/core/trinity_v2/.ai/cli/core/…  siblings at <root>/siblings/
+      runtime flat:  <root>/core/trinity_v2/.ai/cli/core/…  siblings at <root>/ (flat)
+
+    Order matters — `siblings/` first so the monorepo never mis-resolves
+    against its own root (LAYOUT-DIVERGENCE note, retro-0059).
+    """
+    kernel_root = Path(__file__).resolve().parents[5]
+    return [kernel_root / "siblings", kernel_root]
 
 
 def _validate_manifest(
@@ -228,6 +252,7 @@ def _build_manifest_entry(
         raw=manifest,
         source="manifest",
         manifest_path=manifest_path.resolve(),
+        kernel_invocable=bool(manifest.get("kernel_invocable", True)),
     )
 
 
@@ -327,6 +352,7 @@ def load_registry(project_root: Path) -> Dict[str, ToolEntry]:
                 raw=entry,
                 source="legacy",
                 manifest_path=None,
+                kernel_invocable=bool(entry.get("kernel_invocable", True)),
             )
 
     # Manifest layer — opt-in via TRINITY_SIBLINGS_ROOT.
@@ -346,6 +372,26 @@ def load_registry(project_root: Path) -> Dict[str, ToolEntry]:
                     name, entry.manifest_path, legacy_ref,
                 )
             out[name] = entry
+
+    # Kernel-source discovery fallback (thin clients, 2026-06-12).
+    # Fires ONLY when the project ships no .ai/tools.yaml AND no explicit
+    # TRINITY_SIBLINGS_ROOT — i.e. exactly the thin-link layout where the
+    # vendored .ai was stripped. Explicit configuration always wins;
+    # projects with a tools.yaml (monorepo, vendored installs) are
+    # byte-identical to the pre-fallback behavior. Gating is unchanged:
+    # discovered entries keep their manifest's kernel_invocable /
+    # policy_default, enforced at dispatch.
+    if not tools_yaml.exists() and not siblings_root_env:
+        for candidate in _kernel_sibling_roots():
+            discovered = discover_siblings(candidate)
+            if discovered:
+                logger.info(
+                    "tools_registry: no %s — kernel-source manifest "
+                    "discovery from %s (%d tools)",
+                    tools_yaml, candidate, len(discovered),
+                )
+                out.update(discovered)
+                break
 
     return out
 
@@ -460,6 +506,18 @@ def call(
         return ToolInvocation(
             ok=False, returncode=-1, envelope=None,
             stdout="", stderr="", error=str(e),
+        )
+
+    if not tool.kernel_invocable:
+        return ToolInvocation(
+            ok=False, returncode=-1, envelope=None,
+            stdout="", stderr="",
+            error=(
+                f"tool {tool_name!r} declares kernel_invocable: false — "
+                "the kernel never dispatches it (constitutional boundary: "
+                "kernel = control, intelligence = sibling). Compose it "
+                "sibling-to-sibling instead."
+            ),
         )
 
     argv = list(tool.bin_argv) + ["--cmd", cmd]

@@ -84,9 +84,20 @@ def test_list_rule_sets_includes_phase4_set():
     assert "step_complete" in names
 
 
-def test_load_rules_missing_file(tmp_path: Path):
+def test_load_rules_missing_file_falls_back_to_kernel(tmp_path: Path):
+    # P0-3 (2026-06-10): thin clients fall back to the kernel-shipped rules.
+    rules = load_rules(tmp_path)
+    assert "verifier_rules" in rules
+
+
+def test_load_rules_raises_when_kernel_default_absent_too(tmp_path: Path, monkeypatch):
+    from cli.core import kernel_resource
+
+    monkeypatch.setattr(
+        kernel_resource, "_KERNEL_AI_ROOT", tmp_path / "no-kernel-here"
+    )
     with pytest.raises(VerifierError):
-        load_rules(tmp_path)  # no .ai/policies/verifier-rules.yaml
+        load_rules(tmp_path)
 
 
 # ─────────── force_verdict short-circuit ───────────

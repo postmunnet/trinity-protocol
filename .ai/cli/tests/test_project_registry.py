@@ -42,8 +42,10 @@ def test_registry_allocates_collision_safe_project_slugs(tmp_path: Path) -> None
 
     assert rec_a.project_slug == "project_a"
     assert rec_b.project_slug.startswith("project_a__")
-    assert rec_a.memory_db_path == memory_home / "db" / "project_a.db"
-    assert rec_b.memory_db_path == memory_home / "db" / f"{rec_b.project_slug}.db"
+    # Doctrine (retro-0060): evidence DB is project-local, slug collisions
+    # no longer affect the db path (roots differ by construction).
+    assert rec_a.memory_db_path == root_a / ".ai" / ".memory" / "memory.sqlite"
+    assert rec_b.memory_db_path == root_b / ".ai" / ".memory" / "memory.sqlite"
     assert registry.lookup("Project A") == [rec_a, rec_b]
 
 

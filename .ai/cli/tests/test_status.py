@@ -71,7 +71,7 @@ def test_status_from_bound_project_without_ai_runtime(tmp_path: Path, monkeypatc
     assert "Trinity Project Status" in status_result.output
     assert "example_project_production" in status_result.output
     assert "Memory DB File" in status_result.output
-    assert "example_project_production.db" in status_result.output
+    assert "memory.sqlite" in status_result.output  # project-local doctrine (retro-0060)
 
 
 def test_project_add_current_and_doctor_cli(tmp_path: Path, monkeypatch) -> None:
@@ -95,7 +95,7 @@ def test_project_add_current_and_doctor_cli(tmp_path: Path, monkeypatch) -> None
     assert "TRINITY_PROJECT_BINDING_START" in (project_root / "AGENTS.md").read_text(
         encoding="utf-8"
     )
-    assert (tmp_path / "memory" / "db" / "example_project.db").exists()
+    assert (project_root / ".ai" / ".memory" / "memory.sqlite").exists()  # project-local doctrine (retro-0060)
 
     monkeypatch.chdir(project_root)
     current_result = runner.invoke(app, ["project", "current", "--json"], env=env)

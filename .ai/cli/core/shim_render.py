@@ -27,7 +27,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 
-SHORT_CODES = ["lll", "vvv", "nnn", "gogogo", "rrr"]
+# Full ritual surface — sss/ddd gained shims 2026-05-11 / 2026-06-10 (D2/D3).
+SHORT_CODES = ["lll", "sss", "vvv", "nnn", "gogogo", "ddd", "rrr"]
 VENDORS = ["claude-code", "cursor", "agents", "warp"]
 
 

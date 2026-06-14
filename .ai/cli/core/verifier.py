@@ -326,10 +326,22 @@ def sandbox_profile_missing(
 
 
 def load_rules(project_root: Path) -> Dict[str, Any]:
-    """Read .ai/policies/verifier-rules.yaml. Returns the parsed dict."""
-    p = project_root / ".ai" / "policies" / "verifier-rules.yaml"
-    if not p.exists():
-        raise VerifierError(f"verifier-rules.yaml missing: {p}")
+    """Read .ai/policies/verifier-rules.yaml. Returns the parsed dict.
+
+    Thin-client fallback (P0-3, 2026-06-10): linked projects strip
+    .ai/policies — fall back loudly to the kernel-shipped rules.
+    """
+    from .kernel_resource import resolve_ai_resource
+
+    p, _source = resolve_ai_resource(
+        project_root, "policies/verifier-rules.yaml", label="verifier"
+    )
+    if p is None:
+        raise VerifierError(
+            "verifier-rules.yaml missing: "
+            f"{project_root / '.ai' / 'policies' / 'verifier-rules.yaml'} "
+            "(no kernel default found either)"
+        )
     with p.open("r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
     return data

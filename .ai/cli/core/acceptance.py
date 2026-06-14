@@ -72,10 +72,28 @@ class AcceptanceReport:
         return [r for r in self.items if r.item.required and not r.passed]
 
 
+class AcceptanceYamlError(ValueError):
+    """Malformed THINK/03_ACCEPTANCE.yaml (retro-0072): callers must turn
+    this into a clean ritual failure, never a raw traceback that
+    `close --force` can bury without evidence."""
+
+    def __init__(self, yaml_path: Path, cause: Exception):
+        super().__init__(
+            f"acceptance yaml invalid: {yaml_path} — {cause}. "
+            "Tip: backticks inside double-quoted YAML scalars are invalid "
+            "escapes; use single-quoted style for shell commands."
+        )
+        self.yaml_path = yaml_path
+        self.cause = cause
+
+
 def load_acceptance(yaml_path: Path) -> List[AcceptanceItem]:
     if not yaml_path.exists():
         raise FileNotFoundError(f"acceptance yaml not found: {yaml_path}")
-    raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+    try:
+        raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        raise AcceptanceYamlError(yaml_path, exc) from exc
     items_raw = raw.get("acceptance") or []
     items: List[AcceptanceItem] = []
     for entry in items_raw:

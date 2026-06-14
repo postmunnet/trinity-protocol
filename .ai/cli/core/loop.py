@@ -93,11 +93,21 @@ class Loop:
         return session_path.parent.parent.parent
 
     def _load_graph(self) -> Dict[str, Any]:
-        graph_path = (
-            self.project_root / ".ai" / "graphs" / f"{self.graph_name}.yaml"
+        # Thin-client fallback (P0-3, 2026-06-10): linked projects strip
+        # .ai/graphs — fall back loudly to the kernel-shipped graph.
+        from .kernel_resource import resolve_ai_resource
+
+        graph_path, _source = resolve_ai_resource(
+            self.project_root,
+            f"graphs/{self.graph_name}.yaml",
+            label=f"graph:{self.graph_name}",
         )
-        if not graph_path.exists():
-            raise GraphInvalid(f"graph not found: {graph_path}")
+        if graph_path is None:
+            raise GraphInvalid(
+                "graph not found: "
+                f"{self.project_root / '.ai' / 'graphs' / (self.graph_name + '.yaml')} "
+                "(no kernel default found either)"
+            )
         with graph_path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         if not isinstance(data, dict):
