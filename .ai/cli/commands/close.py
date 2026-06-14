@@ -43,6 +43,12 @@ def callback(
         "--hmac-envelope-file",
         help="JSON envelope from external transport. Verifies HMAC before archive.",
     ),
+    reconcile: bool = typer.Option(
+        False,
+        "--reconcile",
+        help="Recovery: repair a stale current_session pointer when the session "
+        "was archived but status.json was not updated. Never archives.",
+    ),
 ):
     """Close and archive session.
 
@@ -56,6 +62,7 @@ def callback(
         reason=reason,
         with_synthesis=with_synthesis,
         hmac_envelope_file=hmac_envelope_file,
+        reconcile=reconcile,
     )
 
 @app.command()
@@ -83,6 +90,12 @@ def run(
         "verifies HMAC before archiving the session; on failure emits "
         "close.hmac_rejected and exits 79.",
     ),
+    reconcile: bool = typer.Option(
+        False,
+        "--reconcile",
+        help="Recovery: repair a stale current_session pointer (archived but "
+        "status not updated). Never archives.",
+    ),
 ):
     """
     Close current session and archive.
@@ -99,6 +112,7 @@ def run(
         reason=reason,
         with_synthesis=with_synthesis,
         hmac_envelope_file=hmac_envelope_file,
+        reconcile=reconcile,
     )
 
 
@@ -108,6 +122,7 @@ def _run_impl(
     reason: Optional[str] = None,
     with_synthesis: bool = False,
     hmac_envelope_file: Optional[Path] = None,
+    reconcile: bool = False,
 ) -> None:
     # D2 — --force is an operator override of the close gates; it MUST carry
     # an audited justification. No silent skeleton key.
@@ -133,8 +148,18 @@ def _run_impl(
         raise typer.Exit(1)
 
     session_path = Path(current_session_path)
+    # C-4 — reconcile is a terminal recovery operation handled before any
+    # close work. It only repairs a stale current_session pointer; it never
+    # archives.
+    if reconcile:
+        _run_reconcile(session_path, config, status, state_mgr)
+        return
     if not session_path.exists():
         console.print(f"[red]Session path not found: {session_path}[/red]")
+        console.print(
+            "   (if it was archived but the pointer is stale, run "
+            "[yellow]ai close --reconcile[/yellow])"
+        )
         raise typer.Exit(1)
 
     if hmac_envelope_file is not None:
@@ -210,6 +235,18 @@ def _run_impl(
                 f"{sorted(terminal_states)}"
             )
             console.print(f"   {action}")
+            # C-1 — the gate decision is unchanged (still blocks); we only make
+            # the block visible/traceable as a distinct audit event.
+            chain.append(
+                "close.blocked",
+                {
+                    "session_id": session_path.name,
+                    "decided_by": "kernel",
+                    "gate": "terminal_state",
+                    "graph_state": graph_state,
+                    "reason": "session graph is not terminal",
+                },
+            )
             raise typer.Exit(1)
 
     prod_verification_summary = "SKIPPED (--force)"
@@ -224,6 +261,16 @@ def _run_impl(
             if not _session_prod_verified(session_path):
                 console.print("[bold red]🚨 GATE LOCK:[/bold red] Prod verification not passed")
                 console.print("   Deploy-bound session: run [yellow]ai verify prod[/yellow] first or use --force")
+                chain.append(
+                    "close.blocked",
+                    {
+                        "session_id": session_path.name,
+                        "decided_by": "kernel",
+                        "gate": "prod_verify",
+                        "graph_state": graph_state,
+                        "reason": "deploy-bound prod verification not passed",
+                    },
+                )
                 raise typer.Exit(1)
         else:
             prod_verification_summary = "SKIPPED (non-deploy)"
@@ -244,7 +291,7 @@ def _run_impl(
         kind="ritual_invocation",
     ) as cap:
         cap.input("close_params.json", {"force": force, "with_synthesis": with_synthesis})
-        _close_pre_archive(session_path, config, cap)
+        pre = _close_pre_archive(session_path, config, cap)
         if with_synthesis and not force:
             _invoke_presentation_synthesizer(session_path, config.project_root)
     archive_path, last_event_hash = _close_archive_and_emit(
@@ -262,18 +309,94 @@ def _run_impl(
     # would print for the same state.
     post_close_action = compute_next(config.project_root, session_path=None)
     next_line = render_one_line(post_close_action)
+
+    # C-3 — the panel tells the truth: real terminal state (DONE stays DONE,
+    # DEAD stays DEAD — never hard-coded) and a degraded flag when any
+    # fail-soft step did not produce its artifact. "Closed" ≠ "Closed clean".
+    graph_state_final = pre.get("graph_state_final", "DONE")
+    degraded = pre.get("degraded", [])
+    if degraded:
+        headline = "[yellow]⚠ Session Closed — DEGRADED[/yellow]"
+        degraded_line = f"• Degraded (close quality): {', '.join(degraded)}\n"
+        panel_title = "⚠ Session Closed (DEGRADED)"
+        panel_border = "yellow"
+    else:
+        headline = "[green]✅ Session Closed Successfully[/green]"
+        degraded_line = ""
+        panel_title = "🏁 Session Closed"
+        panel_border = "green"
     summary = (
-        f"[green]✅ Session Closed Successfully[/green]\n\n"
+        f"{headline}\n\n"
         f"Session: {session_path.name}\n"
         f"Archived: {archive_path}\n\n"
         f"[bold]Summary:[/bold]\n"
         f"• Prod verification: {prod_verification_summary}\n"
-        f"• State: DONE\n"
+        f"• State: {graph_state_final}\n"
+        f"{degraded_line}"
         f"• Archive location: {archive_dir}\n\n"
         f"{next_line}"
     )
-    console.print(Panel(summary, title="🏁 Session Closed", border_style="green"))
+    console.print(Panel(summary, title=panel_title, border_style=panel_border))
     return
+
+
+def _run_reconcile(session_path: Path, config, status, state_mgr) -> None:
+    """C-4 — conservative stale-pointer recovery.
+
+    Repairs status.json when current_session points at a session that was
+    archived but the pointer was never cleared (e.g. archive succeeded then
+    the status save crashed). It NEVER archives. It refuses to guess: an
+    intact active session is a no-op; a missing/ambiguous archive escalates
+    NEEDS_HUMAN (exit 3) rather than inventing a recovery.
+    """
+    # No-op: the active session is intact — nothing stale to repair.
+    if session_path.exists():
+        console.print(
+            "[green]✓ nothing to reconcile[/green] — active session is intact "
+            f"({session_path.name}). Use [yellow]ai close[/yellow] to close it."
+        )
+        raise typer.Exit(0)
+
+    # Stale pointer. Recover ONLY from an unambiguous single archive match.
+    archive_dir = config.project_root / ".ai" / "sessions" / "archive"
+    candidate = archive_dir / (session_path.name + ".archive")
+    matches = [candidate] if candidate.is_dir() else []
+    if len(matches) != 1:
+        console.print(
+            "[bold red]🚨 cannot reconcile:[/bold red] stale pointer "
+            f"{session_path.name!r} has no unambiguous archive "
+            f"(found {len(matches)}). Refusing to guess — NEEDS_HUMAN."
+        )
+        raise typer.Exit(3)
+
+    archive_path = matches[0]
+    try:
+        get_chain_for_project(config.project_root).append(
+            "close.reconciled",
+            {
+                "session_id": session_path.name,
+                "decided_by": "kernel",
+                "archive_path": str(archive_path.relative_to(config.project_root)),
+                "reason": "stale_current_session_pointer",
+            },
+        )
+    except Exception:
+        pass
+    status["system"]["status"] = "idle"
+    status["current_session"] = None
+    status["system"]["active_capsules"] = max(
+        0, status["system"].get("active_capsules", 1) - 1
+    )
+    status["last_closed"] = {
+        "session": archive_path.name,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    state_mgr.save_status(status)
+    console.print(
+        f"[green]✓ reconciled[/green] — cleared stale pointer; "
+        f"{session_path.name} is archived at {archive_path}."
+    )
+    raise typer.Exit(0)
 
 
 def _session_is_deploy_bound(chain, session_id: str) -> bool:
@@ -353,7 +476,12 @@ def _invoke_presentation_synthesizer(session_path: Path, project_root: Path) -> 
         return None
 
 
-def _close_pre_archive(session_path: Path, config, cap) -> None:
+def _close_pre_archive(session_path: Path, config, cap) -> dict:
+    # C-3 — collect close-QUALITY degradations: fail-soft steps that did NOT
+    # block the archive (close_pack / manifest / transcripts). This is close
+    # quality only — it NEVER mutates graph state; the panel reports it so a
+    # degraded close is no longer indistinguishable from a clean one.
+    degraded: list = []
     # Update metadata
     meta_file = session_path / "CONTROL" / "META.json"
     if meta_file.exists():
@@ -384,6 +512,7 @@ def _close_pre_archive(session_path: Path, config, cap) -> None:
         cap.output("close_pack.md.path", str(close_pack_path))
     except Exception as exc:
         console.print(f"[yellow]⚠ close pack render failed: {exc}[/yellow]")
+        degraded.append("close_pack")
 
     # TRINITY_SESSION_CLOSE_SPEC_V1 §2-§5 — build final manifest, emit
     # close.manifest_built, and (COLD only) external audit. Done BEFORE
@@ -454,6 +583,7 @@ def _close_pre_archive(session_path: Path, config, cap) -> None:
         # behavior preserved). COLD external audit failure escalates below.
         console.print(f"[yellow]⚠ manifest build failed: {e}[/yellow]")
         final_manifest = {}
+        degraded.append("final_manifest")
 
     # COLD-tier: emit external audit per Close Spec §3.
     # Failure here raises NEEDS_HUMAN (Article XIII) — close MUST NOT silently
@@ -506,7 +636,10 @@ def _close_pre_archive(session_path: Path, config, cap) -> None:
     # archive (per memory feedback_close_capture_before_archive). The
     # umbrella tolerates per-handler failure so close never breaks on
     # additive observability.
-    _snapshot_conversation_transcripts(session_path, config, cap)
+    failed_transcripts = _snapshot_conversation_transcripts(session_path, config, cap)
+    degraded.extend(failed_transcripts)
+
+    return {"graph_state_final": graph_state_final, "degraded": degraded}
 
 
 def _slugify_project_root(project_root: Path) -> str:
@@ -709,9 +842,11 @@ def _snapshot_gemini_transcript(session_path: Path, config, cap) -> None:
     cap.runtime("gemini_cli_transcript.json", latest.read_bytes())
 
 
-def _snapshot_conversation_transcripts(session_path: Path, config, cap) -> None:
+def _snapshot_conversation_transcripts(session_path: Path, config, cap) -> list:
     """Umbrella: run all vendor-harness transcript snapshots, tolerating
-    per-handler failure.
+    per-handler failure. Returns the list of handler names that FAILED (for
+    close-quality / degraded reporting); empty list when all succeeded or
+    no-op'd.
 
     Each handler is silent-no-op when its harness wasn't used on this
     project. If a handler raises (e.g. permission denied on a transcript
@@ -728,6 +863,7 @@ def _snapshot_conversation_transcripts(session_path: Path, config, cap) -> None:
         ("codex", _snapshot_codex_transcript),
         ("gemini", _snapshot_gemini_transcript),
     )
+    failed: list = []
     for name, handler in handlers:
         try:
             handler(session_path, config, cap)
@@ -735,6 +871,8 @@ def _snapshot_conversation_transcripts(session_path: Path, config, cap) -> None:
             console.print(
                 f"[yellow]⚠ {name} transcript snapshot skipped: {e}[/yellow]"
             )
+            failed.append(f"transcript:{name}")
+    return failed
 
 
 def _close_archive_and_emit(session_path: Path, config, status, state_mgr, force: bool):

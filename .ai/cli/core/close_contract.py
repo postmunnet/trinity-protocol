@@ -84,6 +84,7 @@ CLOSE_AUDIT_EVENTS: frozenset = frozenset({
     "session.closed",
     "close.completed",
     "close.failed",                   # declared-ahead: failure path (visibility session emits)
+    "close.reconciled",               # C-4: stale-pointer recovery (--reconcile)
 })
 
 

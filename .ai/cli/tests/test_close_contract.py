@@ -73,8 +73,8 @@ def test_capture_status_allowed_count_three() -> None:
 # ─────────── §5 — audit events ───────────
 
 
-def test_close_audit_events_count_eight() -> None:
-    assert len(CLOSE_AUDIT_EVENTS) == 8
+def test_close_audit_events_count_nine() -> None:
+    assert len(CLOSE_AUDIT_EVENTS) == 9
 
 
 def test_close_audit_events_canonical_set() -> None:
@@ -87,6 +87,7 @@ def test_close_audit_events_canonical_set() -> None:
         "session.closed",
         "close.completed",
         "close.failed",
+        "close.reconciled",
     }
     assert CLOSE_AUDIT_EVENTS == expected
 
