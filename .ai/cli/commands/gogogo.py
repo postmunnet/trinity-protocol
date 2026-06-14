@@ -32,6 +32,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from ..core.audit import get_chain_for_project
+from ..core.runtime_home import read_engine_source_sha
 from ..core.auth import load_hmac_envelope, verify_hmac
 from ..core.budget import Budget
 from ..core.lease_lifecycle import run_lease_lifecycle
@@ -303,6 +304,41 @@ def _run(
         _gogogo_inner(rule_set, dry_run, hmac_envelope_file, config, session_path, cap)
 
 
+def _runtime_drift_preflight(session_path: Path, config) -> None:
+    """Warn-only: surface engine/runtime drift between sss (pin) and now (live).
+
+    Compares CONTROL/META.json ``runtime_pinned_hash`` to the live engine
+    ``source_sha``. On mismatch: print a warning + append a non-blocking
+    ``runtime.drift_detected`` audit event. Never blocks, never raises — any read
+    failure (no pin, source-mode, unreadable meta) is silently skipped (fail-soft).
+    """
+    try:
+        meta_path = session_path / "CONTROL" / "META.json"
+        pinned = json.loads(meta_path.read_text(encoding="utf-8")).get(
+            "runtime_pinned_hash"
+        )
+        live = read_engine_source_sha(session_path)
+        if not pinned or not live or pinned == live:
+            return
+        console.print(
+            f"[yellow]⚠ engine drifted mid-session[/yellow] — pinned "
+            f"[dim]{pinned}[/dim] ≠ live [dim]{live}[/dim] "
+            f"(may be benign; engine build ต่างจากตอน sss)"
+        )
+        get_chain_for_project(config.project_root).append(
+            "runtime.drift_detected",
+            {
+                "session_id": session_path.name,
+                "pinned_hash": pinned,
+                "live_hash": live,
+                "decided_by": "kernel",
+                "blocking": False,
+            },
+        )
+    except (OSError, ValueError, TypeError):
+        return
+
+
 def _gogogo_inner(
     rule_set: str,
     dry_run: bool,
@@ -319,6 +355,9 @@ def _gogogo_inner(
                 f"Run `{cmd}` first.[/red]"
             )
             raise typer.Exit(2)
+
+    # Runtime pointer-pin pre-flight (warn-only): surface engine drift since sss.
+    _runtime_drift_preflight(session_path, config)
 
     # Q24.10 — execute the latest ACTIVE plan version (honours nnn --amend).
     # resolve_active_plan prefers plan.v{active}.json and falls back to the

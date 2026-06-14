@@ -9,6 +9,7 @@ from ..core.template_loader import TemplateLoader
 from ..core.session_naming import build_session_id, SessionNamingError
 from ..core.audit import get_chain_for_project
 from ..core.next_action import compute as compute_next, render_one_line
+from ..core.runtime_home import read_engine_source_sha
 
 app = typer.Typer()
 console = Console()
@@ -26,6 +27,10 @@ def _create_metadata(session_path: Path, name: str, session_id: str):
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "status": "active",
         "phase": "snapshot",  # Phase 6: start with snapshot
+        # Runtime pointer-pin: engine provenance hash at session open. Compared
+        # live-vs-pinned at gogogo to surface in-flight engine drift (warn-only).
+        # None in source-mode (no .ai/runtime.yaml pointer) — fail-soft by design.
+        "runtime_pinned_hash": read_engine_source_sha(session_path),
         "workflow": {
             "snapshot": False,
             "dev_deployed": False,

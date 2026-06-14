@@ -11,6 +11,7 @@ Resolution order (must match the Node impl exactly):
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from pathlib import Path
@@ -80,6 +81,31 @@ def read_runtime_code(yaml_path: Path) -> Optional[Path]:
     if not val:
         return None
     return Path(val).expanduser().resolve()
+
+
+def read_engine_source_sha(start: Path) -> Optional[str]:
+    """Read the running engine's provenance hash (.trinity-runtime.json source_sha).
+
+    Resolves the engine CODE root via the instance's .ai/runtime.yaml runtime_code:
+    pointer, then reads `<engine>/.trinity-runtime.json`'s `source_sha`. Returns None
+    fail-soft when there is no runtime.yaml (source-mode — no pointer indirection,
+    hence no in-flight drift to detect), no runtime_code:, or the provenance file is
+    missing / unreadable / malformed. Never raises — this is a warn-only signal.
+    """
+    try:
+        yaml_path = find_runtime_yaml(Path(start))
+        if yaml_path is None:
+            return None
+        engine_root = read_runtime_code(yaml_path)
+        if engine_root is None:
+            return None
+        data = json.loads(
+            (engine_root / ".trinity-runtime.json").read_text(encoding="utf-8")
+        )
+        sha = data.get("source_sha")
+        return str(sha) if sha else None
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def resolve_runtime_home(

@@ -38,6 +38,7 @@ from rich.table import Table
 
 from ..core.audit import get_chain_for_project
 from ..core.next_action import compute as compute_next, render_one_line
+from ..core.runtime_home import read_engine_source_sha
 from ..core.project_resolver import resolve_current_project
 from ..core.project_signal import collect_project_signal
 from ..core.ssot import SSOTLoader
@@ -81,12 +82,14 @@ def _run(json_out: bool, audit_n: int) -> int:
         "open_work": None,
         "memory_hints": [],
         "stale_sessions": _stale_sessions(config),
+        "runtime_drift": None,
     }
 
     sess = snapshot["session"]
     if sess.get("session_path"):
         spath = Path(sess["session_path"])
         snapshot["open_work"] = _open_work(spath)
+        snapshot["runtime_drift"] = _runtime_drift(spath)
         # Q24.10 step 5 — session-scope evidence-adoption KPI (no fleet
         # aggregation). kpi_scope is carried so the number is never read as
         # global (lesson Q24.9).
@@ -299,6 +302,23 @@ def _open_work(session_path: Path) -> Dict[str, Any]:
 
 
 # ─────────── stale sessions ───────────
+
+
+def _runtime_drift(session_path: Path) -> Optional[Dict[str, Any]]:
+    """Read-only: compare the pinned engine hash (stamped at sss in CONTROL/
+    META.json) against the live engine source_sha. Returns None when not
+    applicable (no pin, source-mode, unreadable) — fail-soft, never raises.
+    """
+    try:
+        pinned = json.loads(
+            (session_path / "CONTROL" / "META.json").read_text(encoding="utf-8")
+        ).get("runtime_pinned_hash")
+        live = read_engine_source_sha(session_path)
+        if not pinned or not live:
+            return None
+        return {"pinned": pinned, "live": live, "drifted": pinned != live}
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def _stale_sessions(config) -> List[str]:
@@ -538,6 +558,18 @@ def _render_human(snap: Dict[str, Any]) -> None:
                 f"in sessions/ root — neither current nor archived:[/yellow]\n"
                 + "\n".join(body),
                 title="⚠️  stale sessions",
+                border_style="yellow",
+            )
+        )
+
+    drift = snap.get("runtime_drift")
+    if drift and drift.get("drifted"):
+        console.print(
+            Panel(
+                f"[yellow]engine drifted mid-session[/yellow] (may be benign)\n"
+                f"  pinned @ sss: [dim]{drift['pinned']}[/dim]\n"
+                f"  live now:     [dim]{drift['live']}[/dim]",
+                title="⚠️  runtime drift",
                 border_style="yellow",
             )
         )
