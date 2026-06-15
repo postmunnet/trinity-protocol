@@ -187,6 +187,55 @@ def test_no_manifest_skipped(tmp_path, no_manifest):
     assert r.skipped is True and r.verdict == "clean"
 
 
+# ── per-doc changelog exemption ──────────────────────────────────────────
+EXEMPT_MANIFEST = textwrap.dedent(
+    """
+    version: 1
+    defaults:
+      changelog_required: true
+      changelog_exempt: ["CLAUDE.md"]
+    couplings:
+      - id: c1
+        severity: block
+        when_changed: ["core/trinity_v2/.ai/cli/commands/close.py"]
+        require_update: ["CLAUDE.md", "docs/RITUALS.md"]
+        reason: r
+    """
+)
+
+
+def test_manifest_parses_changelog_exempt(tmp_path):
+    (tmp_path / ".ai" / "policies").mkdir(parents=True)
+    (tmp_path / ".ai" / "policies" / "doc_coupling.yaml").write_text(EXEMPT_MANIFEST)
+    m = dc.load_manifest(tmp_path)
+    assert m.changelog_exempt == ["CLAUDE.md"]
+
+
+def test_changelog_exempt_skips_entrypoint_not_doctrine(tmp_path):
+    (tmp_path / ".ai" / "policies").mkdir(parents=True)
+    (tmp_path / ".ai" / "policies" / "doc_coupling.yaml").write_text(EXEMPT_MANIFEST)
+    cp = tmp_path / "core" / "trinity_v2" / ".ai" / "cli" / "commands"
+    cp.mkdir(parents=True)
+    (cp / "close.py").write_text("a")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "RITUALS.md").write_text("r")
+    (tmp_path / "CLAUDE.md").write_text("c")
+    st = tmp_path / ".state"
+    st.mkdir()
+    dc.record_coupling_hashes(st, tmp_path)
+    # change code + update BOTH docs, neither with a changelog entry
+    (cp / "close.py").write_text("b")
+    (tmp_path / "CLAUDE.md").write_text("c updated, no changelog")
+    (tmp_path / "docs" / "RITUALS.md").write_text("r updated, no changelog")
+    r = dc.check(tmp_path, st, "sess-1")
+    cl = {(f.coupling_id, f.kind, tuple(f.missing)) for f in r.findings}
+    # CLAUDE.md exempt → no missing_changelog for it; RITUALS.md still flagged
+    assert ("c1", "missing_changelog", ("docs/RITUALS.md",)) in cl
+    assert not any(
+        f.kind == "missing_changelog" and "CLAUDE.md" in f.missing for f in r.findings
+    )
+
+
 # ── command serialization ───────────────────────────────────────────────
 def test_report_to_dict_shape(tmp_path):
     from cli.commands.doc_drift import report_to_dict

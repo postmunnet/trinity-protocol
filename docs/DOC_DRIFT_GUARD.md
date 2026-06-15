@@ -140,6 +140,13 @@ session id and an ISO-8601-with-offset timestamp. HTML docs use a
 markers. Defaults live under `defaults:` in the manifest
 (`changelog_required`, `timestamp_format: iso8601_with_offset`, `timezone`).
 
+**Per-doc exemption.** Living docs that are edited too often to carry a
+per-edit changelog — entrypoints (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
+`WARP.md`) and the atlas — are listed under `defaults.changelog_exempt`
+(globs). They are still **required to be updated** (`missing_update` still
+applies); they are only exempt from the changelog-freshness check. Versioned
+doctrine docs (`RITUALS.md`, `SHORT_CODES.md`) are **not** exempt.
+
 ### 1.6 Safety properties
 
 - **Opt-in:** no manifest → `check()` returns `skipped` → gate is a no-op.
@@ -268,4 +275,5 @@ Why drift can't stay silent:
 
 <!-- trinity:changelog:start -->
 - 2026-06-15T14:00:00+07:00 · doc-drift guard v1 + v2 + follow-up shipped (commits 8c976c0 / 672e88c / 7e3de33).
+- 2026-06-15T15:10:00+07:00 · session 0001_2026-06-15_15_05_pm_feat-doc-drift-changelog-policy-aidocs · per-doc changelog policy (`defaults.changelog_exempt` for living entrypoints/atlas) + ai-docs/ doc-drift pointer.
 <!-- trinity:changelog:end -->

@@ -19,6 +19,16 @@ defaults:
   changelog_required: true
   timestamp_format: iso8601_with_offset   # e.g. 2026-06-15T07:42:17+07:00
   timezone: Asia/Bangkok
+  # Living docs that are edited too often to carry a per-edit changelog entry —
+  # they are still REQUIRED to update (missing_update), just exempt from the
+  # changelog-freshness check. Versioned doctrine docs (RITUALS.md, SHORT_CODES.md)
+  # are NOT exempt. Globs, project-root-relative.
+  changelog_exempt:
+    - "CLAUDE.md"
+    - "AGENTS.md"
+    - "GEMINI.md"
+    - "WARP.md"
+    - "dev/trinity_structure_workflow.html"
 
 couplings:
   - id: ritual-shortcodes

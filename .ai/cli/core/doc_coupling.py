@@ -45,6 +45,7 @@ class Manifest:
     timestamp_format: str
     timezone: str
     couplings: List[Coupling]
+    changelog_exempt: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -121,6 +122,7 @@ def load_manifest(project_root: Path) -> Optional[Manifest]:
         timestamp_format=str(defaults.get("timestamp_format", "iso8601_with_offset")),
         timezone=str(defaults.get("timezone", "UTC")),
         couplings=couplings,
+        changelog_exempt=list(defaults.get("changelog_exempt") or []),
     )
 
 
@@ -318,7 +320,12 @@ def check(
             )
         # changelog freshness on docs that WERE updated
         if manifest.changelog_required:
-            updated = [d for d in c.require_update if d not in missing]
+            # exempt living docs (entrypoints/atlas) from the changelog-freshness
+            # check — they still must be updated, just don't carry per-edit entries.
+            updated = [
+                d for d in c.require_update
+                if d not in missing and not _match_any(d, manifest.changelog_exempt)
+            ]
             stale = [d for d in updated if not _changelog_fresh(project_root, d, session_id)]
             if stale:
                 report.findings.append(
