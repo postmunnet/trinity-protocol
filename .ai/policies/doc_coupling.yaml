@@ -75,3 +75,16 @@ couplings:
       - "dev/trinity_structure_workflow.html"
       - "CLAUDE.md"
     reason: "sibling roster/status changed; atlas and operator docs may drift"
+
+  # Recursive dogfood: the doc-drift guard keeps its OWN explainer in sync.
+  # Behaviour code only (not this manifest) so adding a coupling doesn't force a
+  # doc edit. warn (not block) — DOC_DRIFT_GUARD is an explainer, not a contract.
+  - id: doc-drift-guard
+    severity: warn
+    when_changed:
+      - "core/trinity_v2/.ai/cli/core/doc_coupling.py"
+      - "core/trinity_v2/.ai/cli/core/fact_drift.py"
+      - "core/trinity_v2/.ai/cli/commands/doc_drift.py"
+    require_update:
+      - "core/trinity_v2/docs/DOC_DRIFT_GUARD.md"
+    reason: "doc-drift guard behaviour changed; its explainer must stay in sync"
