@@ -2,7 +2,7 @@
 
 Chains born under the bootstrap installer start with prev_hash="genesis"
 and hash events with json.dumps(sort_keys=True) DEFAULT separators —
-proven against vape24's real prefix. verify_chain must accept those with
+proven against example_client's real prefix. verify_chain must accept those with
 FULL sha256 recomputation (no weaker link-only mode), keep failing on
 tampered events of either era, and leave pure-modern chains untouched.
 """
@@ -43,7 +43,7 @@ def _modern_event(etype: str, prev: str, details: dict) -> dict:
     return {**body, "hash": h}
 
 
-def _vape24_shaped_chain() -> list[dict]:
+def _example_client_shaped_chain() -> list[dict]:
     e0 = _pre_epoch_event("genesis", "genesis", {"note": "scaffold"})
     e1 = _pre_epoch_event("scaffold_complete", e0["hash"], {"files": 10})
     e2 = _pre_epoch_event("integration_merge", e1["hash"], {"merged": True})
@@ -53,19 +53,19 @@ def _vape24_shaped_chain() -> list[dict]:
 
 
 def test_pre_epoch_prefix_chain_verifies() -> None:
-    ok, errors = verify_chain(_vape24_shaped_chain(), chain_kind="legacy")
+    ok, errors = verify_chain(_example_client_shaped_chain(), chain_kind="legacy")
     assert ok, errors
 
 
 def test_pre_epoch_chain_verifies_strict_types() -> None:
     ok, errors = verify_chain(
-        _vape24_shaped_chain(), chain_kind="legacy", strict=True
+        _example_client_shaped_chain(), chain_kind="legacy", strict=True
     )
     assert ok, errors
 
 
 def test_tampered_pre_epoch_event_still_fails() -> None:
-    chain = _vape24_shaped_chain()
+    chain = _example_client_shaped_chain()
     chain[1]["details"]["files"] = 999  # mutate body, keep stored hash
     ok, errors = verify_chain(chain, chain_kind="legacy")
     assert not ok
@@ -73,7 +73,7 @@ def test_tampered_pre_epoch_event_still_fails() -> None:
 
 
 def test_tampered_modern_event_still_fails() -> None:
-    chain = _vape24_shaped_chain()
+    chain = _example_client_shaped_chain()
     chain[4]["details"]["decided_by"] = "attacker"
     ok, errors = verify_chain(chain, chain_kind="legacy")
     assert not ok

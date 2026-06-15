@@ -105,7 +105,7 @@ CANONICAL_EVENT_TYPES: frozenset[str] = frozenset({
     "snapshot.created",
     "ritual_constitution.ratified",
     # Pre-epoch (bootstrap installer) era events — real chains start with
-    # these (vape24 prefix, 2026-06-10)
+    # these (example_client prefix, 2026-06-10)
     "genesis",
     "scaffold_complete",
     "integration_merge",
@@ -115,7 +115,7 @@ GENESIS_PREV_HASH = "0"
 # Pre-epoch tolerance (2026-06-10): chains born under the bootstrap installer
 # start with prev_hash "genesis" and hash their events with
 # json.dumps(sort_keys=True) DEFAULT separators (spaces) — proven against
-# vape24's real prefix. Both eras verify with full sha256 recomputation;
+# example_client's real prefix. Both eras verify with full sha256 recomputation;
 # nothing is ever rewritten (append-only).
 GENESIS_PREV_HASHES = {GENESIS_PREV_HASH, "genesis"}
 EXIT_OK = 0
@@ -168,7 +168,7 @@ def _event_for_hash_legacy(row: dict) -> dict:
 def _canonical_json_pre_epoch(obj) -> str:
     """Bootstrap-installer era canonical form — sorted keys, DEFAULT
     separators (", " / ": "), ascii-escaped. Matches the recipe found on
-    real pre-epoch chains (vape24 prefix, 2026-06-10)."""
+    real pre-epoch chains (example_client prefix, 2026-06-10)."""
     return json.dumps(obj, sort_keys=True)
 
 

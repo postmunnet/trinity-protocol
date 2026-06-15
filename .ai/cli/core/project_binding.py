@@ -99,7 +99,7 @@ def _binding_from_dict(data: Dict[str, Any], binding_path: Path) -> ProjectBindi
     # Doctrine (retro-0060): the evidence DB is project-local; central memory
     # holds only the federation registry. Default must match what the kernel
     # actually injects via tools_registry._tool_env, or lll/status display a
-    # path no tool ever writes (the vape24 empty-central-DB incident).
+    # path no tool ever writes (the example_client empty-central-DB incident).
     memory_db = Path(
         memory.get("db") or (root_path / ".ai" / ".memory" / "memory.sqlite")
     )
