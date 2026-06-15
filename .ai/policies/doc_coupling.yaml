@@ -1,0 +1,66 @@
+# Trinity doc-coupling manifest (v1) — operator-authored, human-write-only (Article III).
+#
+# Declares "if code X changes, doc Y must be updated (in the same session)".
+# Checked at rrr (doc-coupling gate) and via `ai doc-drift` (read-only).
+#
+# Detection is content-hash snapshot first (monorepo root is not a git repo),
+# with `git diff` as a bonus on git-tracked instances. No manifest = gate skipped.
+#
+# Paths are resolved relative to the project root (the monorepo / instance root),
+# NOT relative to this file's location.
+#
+# severity:
+#   block = high-confidence doctrine/behaviour coupling — blocks RETRO->DONE
+#   warn  = narrative/reference docs that may legitimately lag — allow + audit
+#   info  = optional; surfaced only
+version: 1
+
+defaults:
+  changelog_required: true
+  timestamp_format: iso8601_with_offset   # e.g. 2026-06-15T07:42:17+07:00
+  timezone: Asia/Bangkok
+
+couplings:
+  - id: ritual-shortcodes
+    severity: block
+    when_changed:
+      - "core/trinity_v2/.ai/cli/commands/*.py"
+      - "core/trinity_v2/.ai/rituals/**"
+    require_update:
+      - "CLAUDE.md"
+      - "ai-docs/SHORT_CODES.md"
+      - "ai-docs/CHEATSHEET.md"
+      - "core/trinity_v2/docs/RITUALS.md"
+    reason: "ritual command behavior changed; doctrine surfaces must stay in lock-step"
+
+  - id: graph-states
+    severity: block
+    when_changed:
+      - "core/trinity_v2/.ai/graphs/standard.yaml"
+      - "core/trinity_v2/.ai/cli/core/terminal_states.py"
+    require_update:
+      - "dev/trinity_structure_workflow.html"
+      - "core/trinity_v2/docs/RITUALS.md"
+    reason: "graph/terminal state behavior changed; atlas and rituals docs must reflect it"
+
+  - id: close-ritual
+    severity: block
+    when_changed:
+      - "core/trinity_v2/.ai/cli/commands/close.py"
+      - "core/trinity_v2/.ai/cli/core/close_contract.py"
+      - "core/trinity_v2/.ai/rituals/close/**"
+    require_update:
+      - "core/trinity_v2/docs/RITUALS.md"
+      - "dev/trinity_structure_workflow.html"
+    reason: "close ritual behavior changed; seal/archive doctrine must be updated"
+
+  - id: sibling-registry
+    severity: warn
+    when_changed:
+      - "siblings/**/package.json"
+      - "siblings/REGISTRY.md"
+      - "core/trinity_v2/.ai/tools.yaml"
+    require_update:
+      - "dev/trinity_structure_workflow.html"
+      - "CLAUDE.md"
+    reason: "sibling roster/status changed; atlas and operator docs may drift"

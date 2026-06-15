@@ -127,7 +127,14 @@ def callback(
     reason: Optional[str] = typer.Option(
         None,
         "--reason",
-        help="Reason for --accept-debt (required when waiving debt).",
+        help="Reason for --accept-debt / --accept-doc-debt (required when waiving).",
+    ),
+    accept_doc_debt: bool = typer.Option(
+        False,
+        "--accept-doc-debt",
+        help="Waive a blocking doc-coupling finding (a required doc was not "
+        "updated) so RETRO->DONE may fire. Requires --reason. Audited as "
+        "doc_coupling.debt_waived (source=explicit_cli_flag).",
     ),
 ):
     """Run the rrr terminal gate."""
@@ -144,6 +151,7 @@ def callback(
         with_lessons=with_lessons,
         accept_debt=accept_debt,
         reason=reason,
+        accept_doc_debt=accept_doc_debt,
     )
     raise typer.Exit(code=code)
 
@@ -159,6 +167,7 @@ def _run(
     with_lessons: bool = False,
     accept_debt: bool = False,
     reason: Optional[str] = None,
+    accept_doc_debt: bool = False,
 ) -> int:
     from ..core.recordproxy import capture
     loader = SSOTLoader(Path.cwd())
@@ -204,6 +213,7 @@ def _run(
             with_lessons=with_lessons,
             accept_debt=accept_debt,
             reason=reason,
+            accept_doc_debt=accept_doc_debt,
             config=config,
             project_root=project_root,
             session_path=session_path,
@@ -264,6 +274,7 @@ def _rrr_inner(
     with_lessons: bool,
     accept_debt: bool = False,
     reason: Optional[str] = None,
+    accept_doc_debt: bool = False,
     config,
     project_root,
     session_path,
@@ -422,6 +433,58 @@ def _rrr_inner(
         baseline_untracked=baseline_untracked,
     )
     _print_forbidden_diff(fd_report)
+
+    # 4.5 doc-coupling drift gate (Option 2.5 — opt-in: skipped when no manifest).
+    # Reuses the content-hash snapshot stamped at sss. severity:block missing ->
+    # block RETRO->DONE (unless --accept-doc-debt --reason); severity:warn ->
+    # allow + audit. Mirrors the acceptance gate's hard-exit pattern.
+    from ..core import doc_coupling as _dc
+    dc_report = _dc.check(project_root, session_path / ".state", sid, baseline=baseline)
+    if not dc_report.skipped:
+        if dc_report.findings:
+            console.print(f"doc-coupling gate: [bold]{dc_report.verdict}[/bold]")
+            for f in dc_report.findings:
+                tag = "[red]block[/red]" if f.severity == "block" else "[yellow]warn[/yellow]"
+                console.print(
+                    f"  {tag} {f.coupling_id} · {f.kind}: {', '.join(f.missing)}"
+                )
+        else:
+            console.print("doc-coupling gate: [green]✅ none[/green]")
+        for f in dc_report.warnings:
+            loop.chain.append("doc_coupling.warning", {
+                "session_id": sid,
+                "coupling_id": f.coupling_id,
+                "kind": f.kind,
+                "missing": f.missing,
+                "decided_by": "kernel",
+            })
+        if dc_report.blocking:
+            if accept_doc_debt:
+                if not reason:
+                    console.print("[red]--accept-doc-debt requires --reason[/red]")
+                    raise typer.Exit(2)
+                loop.chain.append("doc_coupling.debt_waived", {
+                    "session_id": sid,
+                    "waived": [f.coupling_id for f in dc_report.blocking],
+                    "reason": reason,
+                    "source": "explicit_cli_flag",
+                    "decided_by": "operator",
+                })
+                console.print(f"[yellow]doc-coupling debt waived[/yellow] — {reason}")
+            else:
+                loop.chain.append("doc_coupling.blocked", {
+                    "session_id": sid,
+                    "blocking": [
+                        {"coupling_id": f.coupling_id, "kind": f.kind, "missing": f.missing}
+                        for f in dc_report.blocking
+                    ],
+                    "decided_by": "kernel",
+                })
+                console.print(
+                    "[red]doc-coupling gate: required doc(s) not updated.[/red] "
+                    "Update them, or `ai rrr --accept-doc-debt --reason ...`."
+                )
+                raise typer.Exit(5)
 
     # 5. metrics
     metrics = metrics_for_session(loop.chain, sid)

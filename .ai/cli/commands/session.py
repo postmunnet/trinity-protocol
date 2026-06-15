@@ -309,6 +309,16 @@ def new(name: str):
         # if the file is absent.
         pass
 
+    # Doc-coupling drift guard (v1): stamp content hashes of every
+    # manifest-referenced file so the rrr gate / `ai doc-drift` can detect
+    # in-session drift without git (the monorepo root is not a git repo).
+    # Fail-soft + opt-in: no manifest => nothing stamped, gate stays clean.
+    try:
+        from ..core.doc_coupling import record_coupling_hashes
+        record_coupling_hashes(session_path / ".state", config.project_root)
+    except Exception:
+        pass
+
     # 3b. Cleanup any stale session lock
     cleanup_stale_lock(session_path / ".state" / "LOCK", timeout=30)
 

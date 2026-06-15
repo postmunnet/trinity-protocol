@@ -16,6 +16,7 @@ from .commands import wizard as wizard_cmd
 from .commands import audit as audit_cmd
 from .commands import sss as sss_cmd
 from .commands import aaa as aaa_cmd
+from .commands import doc_drift as doc_drift_cmd
 from .commands import doctor as doctor_cmd
 from .commands import config as config_cmd
 from .commands import migrate_state as migrate_state_cmd
@@ -53,6 +54,7 @@ app.add_typer(gogogo_cmd.app, name="gogogo")  # step-by-step with verifier
 app.add_typer(rrr_cmd.app, name="rrr")        # Phase 1.5 — executable retro gate
 app.add_typer(lll_cmd.app, name="lll")        # Phase 2.3 — read-only situational snapshot
 app.add_typer(aaa_cmd.app, name="aaa")        # Q24.10 step 5 — read-only amendment router + evidence KPI
+app.add_typer(doc_drift_cmd.app, name="doc-drift")  # doc-coupling drift guard — read-only check
 app.add_typer(loop_cmd.app, name="loop")      # Phase 5 — goal tree + checkpoint/resume
 app.add_typer(ddd_cmd.app, name="ddd")        # Phase 5 — deploy decision gate (VERIFIED→PROMOTED→DEPLOYED)
 app.add_typer(shim_cmd.app, name="shim")      # Phase 8 — render shim adapters for vendor harnesses
