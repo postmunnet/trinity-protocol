@@ -481,8 +481,12 @@ def _rrr_inner(
                     "decided_by": "kernel",
                 })
                 console.print(
-                    "[red]doc-coupling gate: required doc(s) not updated.[/red] "
-                    "Update them, or `ai rrr --accept-doc-debt --reason ...`."
+                    "[red]doc-coupling gate: required doc(s) not updated.[/red]\n"
+                    "  → update them (add a changelog entry: "
+                    "[dim]<ISO8601+offset> · session <id>[/dim], e.g. "
+                    "[dim]2026-06-15T07:42:17+07:00 · session 0001_…[/dim]),\n"
+                    "  → or waive: `ai rrr --accept-doc-debt --reason ...`\n"
+                    "  see core/trinity_v2/docs/DOC_DRIFT_GUARD.md · `ai doc-drift`"
                 )
                 raise typer.Exit(5)
 

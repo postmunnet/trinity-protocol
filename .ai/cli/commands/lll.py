@@ -83,6 +83,7 @@ def _run(json_out: bool, audit_n: int) -> int:
         "memory_hints": [],
         "stale_sessions": _stale_sessions(config),
         "runtime_drift": None,
+        "doc_drift": _doc_drift(project_root),
     }
 
     sess = snapshot["session"]
@@ -302,6 +303,20 @@ def _open_work(session_path: Path) -> Dict[str, Any]:
 
 
 # ─────────── stale sessions ───────────
+
+
+def _doc_drift(project_root: Path) -> Optional[Dict[str, Any]]:
+    """Read-only standing fact-drift summary (advisory). Returns None when clean
+    or on any failure — kept cheap + fail-soft so it never slows or breaks lll.
+    Surfaces the doc-drift guard proactively so any agent sees it at session
+    start, not only when blocked at rrr. See docs/DOC_DRIFT_GUARD.md."""
+    try:
+        from ..core.fact_drift import compare
+        rep = compare(project_root)
+        drifted = [r.fact_id for r in rep.results if r.drifted]
+        return {"drift_count": len(drifted), "drifted": drifted} if drifted else None
+    except Exception:
+        return None
 
 
 def _runtime_drift(session_path: Path) -> Optional[Dict[str, Any]]:
@@ -570,6 +585,18 @@ def _render_human(snap: Dict[str, Any]) -> None:
                 f"  pinned @ sss: [dim]{drift['pinned']}[/dim]\n"
                 f"  live now:     [dim]{drift['live']}[/dim]",
                 title="⚠️  runtime drift",
+                border_style="yellow",
+            )
+        )
+
+    dd = snap.get("doc_drift")
+    if dd and dd.get("drift_count"):
+        console.print(
+            Panel(
+                f"[yellow]{dd['drift_count']} fact(s) drift vs docs[/yellow]: "
+                f"{', '.join(dd['drifted'])}\n"
+                f"  run [bold]ai doc-drift --facts[/bold] · docs/DOC_DRIFT_GUARD.md",
+                title="⚠️  doc drift",
                 border_style="yellow",
             )
         )
