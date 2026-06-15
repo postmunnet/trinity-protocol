@@ -115,7 +115,10 @@ def _claim_projects(t: Optional[str]) -> Optional[str]:
 
 
 def _claim_retros(t: Optional[str]) -> Optional[str]:
-    return _distinct(r"(\d+)\s+retros\b", t)
+    # Anchor to the LIVE-count phrasing ("N retros indexed") so historical stats
+    # snapshots ("101 retros", "124 retros") and range refs ("retros 0068-0075")
+    # are NOT treated as the doc's live claim. Found by dogfooding 2026-06-15.
+    return _distinct(r"(\d+)\s+retros indexed", t)
 
 
 # ── registry ─────────────────────────────────────────────────────────────

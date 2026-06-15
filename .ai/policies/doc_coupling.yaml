@@ -23,8 +23,19 @@ defaults:
 couplings:
   - id: ritual-shortcodes
     severity: block
+    # Scoped to the actual ritual-shortcode command files (not all commands/*.py —
+    # utility commands like doc_drift/doctor/config are NOT ritual shortcodes and
+    # must not false-trigger this doctrine coupling). Found by dogfooding 2026-06-15.
     when_changed:
-      - "core/trinity_v2/.ai/cli/commands/*.py"
+      - "core/trinity_v2/.ai/cli/commands/vvv.py"
+      - "core/trinity_v2/.ai/cli/commands/nnn.py"
+      - "core/trinity_v2/.ai/cli/commands/gogogo.py"
+      - "core/trinity_v2/.ai/cli/commands/rrr.py"
+      - "core/trinity_v2/.ai/cli/commands/ddd.py"
+      - "core/trinity_v2/.ai/cli/commands/close.py"
+      - "core/trinity_v2/.ai/cli/commands/sss.py"
+      - "core/trinity_v2/.ai/cli/commands/lll.py"
+      - "core/trinity_v2/.ai/cli/commands/aaa.py"
       - "core/trinity_v2/.ai/rituals/**"
     require_update:
       - "CLAUDE.md"

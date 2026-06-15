@@ -62,8 +62,11 @@ def test_truth_failsoft_on_missing_sources(tmp_path):
 
 # ── claim extractors ─────────────────────────────────────────────────────
 def test_claim_distinct_flags_inconsistent():
-    # a doc asserting a fact two different ways -> sorted distinct set
-    assert fd._claim_retros("88 retros indexed ... 101 retros later") == "101,88"
+    # only the live-count phrasing "N retros indexed" counts; stats snapshots
+    # ("101 retros") and ranges are ignored.
+    assert fd._claim_retros("88 retros indexed ... 101 retros later") == "88"
+    # two inconsistent LIVE claims are still flagged
+    assert fd._claim_retros("88 retros indexed; 90 retros indexed") == "88,90"
 
 
 def test_claim_terminal_set():
