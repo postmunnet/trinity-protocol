@@ -16,6 +16,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from ..core import doc_coupling as dc
+from ..core import fact_drift as fdrift
 from ..core.ssot import SSOTLoader
 
 app = typer.Typer()
@@ -29,11 +30,54 @@ def callback(
     session: Optional[str] = typer.Option(
         None, "--session", help="Session id or path (defaults to current_session)"
     ),
+    facts: bool = typer.Option(
+        False, "--facts",
+        help="(v2) Compare canonical facts vs what docs assert (semantic drift), "
+        "instead of the session coupling check.",
+    ),
 ):
-    """Check doc-coupling drift for the active session (read-only)."""
+    """Check doc drift (read-only). Default: session coupling. --facts: fact drift."""
     if ctx.invoked_subcommand is not None:
         return
+    if facts:
+        raise typer.Exit(code=_run_facts(json_out))
     raise typer.Exit(code=_run(json_out, session))
+
+
+def _run_facts(json_out: bool) -> int:
+    config = SSOTLoader(Path.cwd()).load()
+    report = fdrift.compare(config.project_root)
+    if json_out:
+        console.print_json(
+            _json.dumps(
+                {
+                    "verdict": report.verdict,
+                    "drift_count": report.drift_count,
+                    "facts": [
+                        {
+                            "fact_id": r.fact_id,
+                            "description": r.description,
+                            "truth": r.truth,
+                            "claims": r.claims,
+                            "status": r.status,
+                        }
+                        for r in report.results
+                    ],
+                }
+            )
+        )
+        return 0
+    icon = {"match": "✅", "drift": "❌", "unknown": "•"}
+    lines = [f"verdict: [bold]{report.verdict}[/bold] · {report.drift_count} drift\n"]
+    for r in report.results:
+        for doc, st in r.status.items():
+            short = doc.rsplit("/", 1)[-1]
+            lines.append(
+                f"  {icon.get(st, '?')} [bold]{r.fact_id}[/bold]  "
+                f"truth=[cyan]{r.truth}[/cyan]  {short}=[dim]{r.claims.get(doc)}[/dim]"
+            )
+    console.print(Panel("\n".join(lines), title="🔗 doc-drift · facts", border_style="cyan"))
+    return 0
 
 
 def _resolve_session(config, session_override: Optional[str]) -> Optional[Path]:
