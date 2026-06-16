@@ -91,18 +91,40 @@ app = typer.Typer()
 console = Console()
 
 
-def _dead_is_terminal(rule_set_name: str, rules_doc: Dict[str, Any]) -> bool:
+def _dead_is_terminal(
+    rule_set_name: str,
+    rules_doc: Dict[str, Any],
+    matched_predicates: Any = (),
+) -> bool:
     """ADR-0001 D2 — is a DEAD verdict from `rule_set_name` a *terminal* graph
-    failure?
+    failure? Rule-derived, per-predicate (operator ruling 2026-06-16):
 
-    Rule-derived: True only when the matched rule-set declares
-    ``dead_is_terminal: true``. Default False (a DEAD verdict from an
-    unclassified rule is non-terminal → human escalation, not auto-kill). This
-    is runtime routing metadata read from the rules doc — it is never a
-    persisted verdict/schema field and is never AI-declared.
+      - ``dead_is_terminal: true``            → any matched predicate is terminal
+      - ``dead_is_terminal: false`` / missing → no matched predicate is terminal
+      - ``dead_is_terminal: [p1, p2]``        → terminal iff ``matched_predicates``
+                                                intersects the list
+      - any other type                        → conservative non-terminal + a
+                                                config warning (never auto-DEAD)
+
+    Runtime routing metadata read from the rules doc — never a persisted
+    verdict/schema field, never AI-declared. ``matched_predicates`` defaults to
+    () for backward compatibility (true/false configs ignore it).
     """
-    rule_cfg = (rules_doc.get("verifier_rules") or {}).get(rule_set_name) or {}
-    return bool(rule_cfg.get("dead_is_terminal", False))
+    cfg = (rules_doc.get("verifier_rules") or {}).get(rule_set_name, {}).get(
+        "dead_is_terminal", False
+    )
+    if cfg is True:
+        return True
+    if cfg is False or cfg is None:
+        return False
+    if isinstance(cfg, list):
+        return any(p in cfg for p in (matched_predicates or ()))
+    console.print(
+        f"[yellow]config warning: rule-set {rule_set_name!r} dead_is_terminal "
+        f"has invalid type {type(cfg).__name__} — treating as non-terminal "
+        f"(not auto-DEAD).[/yellow]"
+    )
+    return False
 
 
 def _verify_step(
@@ -1068,7 +1090,9 @@ def _gogogo_inner(
             # *terminal* graph failure only when its matched rule-set declares
             # dead_is_terminal=true (default false; runtime routing metadata —
             # never a persisted verdict/schema field, never AI-declared).
-            if _dead_is_terminal(verdict.rule_set, rules_doc):
+            if _dead_is_terminal(
+                verdict.rule_set, rules_doc, verdict.matched_predicates
+            ):
                 # Terminal DEAD: close the orphaned-terminal-DEAD gap — fire the
                 # graph transition DO->DEAD instead of a bare Exit that strands
                 # graph_state in DO.

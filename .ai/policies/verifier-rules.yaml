@@ -75,6 +75,14 @@ verifier_rules:
   # verdict via force_verdict or supplies negative evidence.
   step_complete:
     description: "Generic step-done check; degrades to PASS when no negative evidence."
+    # ADR-0001 D2 — per-predicate terminality (operator ruling 2026-06-16).
+    # step_complete is a broad generic gate, so only boundary/security/integrity
+    # predicates are terminal (DO->DEAD). retry_budget_exhausted is NOT terminal
+    # — it means this round ran out of budget, not that the session can no longer
+    # produce a trusted completion; it parks in DO and escalates to a human.
+    dead_is_terminal:
+      - sandbox_violation
+      - forbidden_pattern_found
     pass_when:
       - step_done                # default-True; see step_complete.defaults
     retry_when:

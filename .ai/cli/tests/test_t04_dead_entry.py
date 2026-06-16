@@ -175,12 +175,62 @@ REAL_RULES = Path(__file__).resolve().parents[2] / "policies" / "verifier-rules.
 
 
 def test_production_rules_terminal_classification_is_live():
-    """The production verifier-rules.yaml classifies exactly the three
-    operator-ruled terminal rule-sets; step_complete/browser_check stay
-    non-terminal. Proves the T0.4 mechanism is no longer dormant for them."""
+    """The production verifier-rules.yaml classifies the three operator-ruled
+    terminal rule-sets (true). step_complete is now per-predicate; with no
+    matched predicate it is non-terminal. browser_check stays non-terminal."""
     doc = yaml.safe_load(REAL_RULES.read_text())
     assert _dead_is_terminal("code_change", doc) is True
     assert _dead_is_terminal("deploy_check", doc) is True
     assert _dead_is_terminal("memory_promote", doc) is True
     assert _dead_is_terminal("step_complete", doc) is False
     assert _dead_is_terminal("browser_check", doc) is False
+
+
+# ─────────── per-predicate granularity (overload bool|list) ───────────
+
+
+def _doc(cfg):
+    return {"verifier_rules": {"rs": {"dead_is_terminal": cfg}}}
+
+
+def test_overload_bool_true_all_predicates_terminal():
+    # backward compat: true means any matched predicate is terminal
+    assert _dead_is_terminal("rs", _doc(True), ["anything"]) is True
+    assert _dead_is_terminal("rs", _doc(True), []) is True
+    assert _dead_is_terminal("rs", _doc(True)) is True  # default ()
+
+
+def test_overload_bool_false_and_missing_non_terminal():
+    assert _dead_is_terminal("rs", _doc(False), ["x"]) is False
+    assert _dead_is_terminal("rs", _doc(None), ["x"]) is False
+    assert _dead_is_terminal("rs", {"verifier_rules": {"rs": {}}}, ["x"]) is False
+
+
+def test_overload_list_hit_is_terminal():
+    cfg = ["sandbox_violation", "forbidden_pattern_found"]
+    assert _dead_is_terminal("rs", _doc(cfg), ["sandbox_violation"]) is True
+    assert _dead_is_terminal("rs", _doc(cfg), ["other", "forbidden_pattern_found"]) is True
+
+
+def test_overload_list_miss_is_non_terminal():
+    cfg = ["sandbox_violation", "forbidden_pattern_found"]
+    assert _dead_is_terminal("rs", _doc(cfg), ["retry_budget_exhausted"]) is False
+    assert _dead_is_terminal("rs", _doc(cfg), []) is False
+
+
+def test_overload_invalid_type_is_conservative_non_terminal():
+    # a string / dict / int is neither bool nor list → conservative False, never DEAD
+    assert _dead_is_terminal("rs", _doc("sandbox_violation"), ["sandbox_violation"]) is False
+    assert _dead_is_terminal("rs", _doc({"x": 1}), ["x"]) is False
+    assert _dead_is_terminal("rs", _doc(1), ["x"]) is False
+
+
+def test_step_complete_per_predicate_live_over_real_rules():
+    """Production step_complete: boundary/security predicates terminal,
+    retry_budget_exhausted non-terminal; the 3 true rule-sets stay terminal."""
+    doc = yaml.safe_load(REAL_RULES.read_text())
+    assert _dead_is_terminal("step_complete", doc, ["sandbox_violation"]) is True
+    assert _dead_is_terminal("step_complete", doc, ["forbidden_pattern_found"]) is True
+    assert _dead_is_terminal("step_complete", doc, ["retry_budget_exhausted"]) is False
+    for rs in ("code_change", "deploy_check", "memory_promote"):
+        assert _dead_is_terminal(rs, doc, ["whatever"]) is True
