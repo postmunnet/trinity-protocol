@@ -267,3 +267,60 @@ def test_audit_records_subgraph_entered_and_exited(tmp_path: Path):
     assert "loop.subgraph.exited" in types
     # entered happens before exited
     assert types.index("loop.subgraph.entered") < types.index("loop.subgraph.exited")
+
+
+# ─────────── audit-before-state ordering (T0.1 parity) ───────────
+
+
+def _walk_to_verified(loop: Loop) -> None:
+    for trig, by in (
+        ("sss", "kernel"),
+        ("nnn_pass", "kernel"),
+        ("vvv_pass", "verifier"),
+        ("gogogo_complete", "verifier"),
+    ):
+        loop.fire(trig, decided_by=by)
+
+
+def _raise(*_a, **_k):
+    raise RuntimeError("audit down")
+
+
+def test_subgraph_methods_audit_before_state_source_order():
+    """enter_subgraph / exit_subgraph must append the audit event before the
+    durable _set_graph_state write (same invariant as Loop.fire / T0.1)."""
+    import inspect
+
+    for fn in ("enter_subgraph", "exit_subgraph"):
+        s = inspect.getsource(getattr(Loop, fn))
+        assert s.index("chain.append") < s.index("_set_graph_state"), fn
+
+
+def test_enter_subgraph_audit_failure_does_not_advance_state(tmp_path: Path, monkeypatch):
+    proj, sess = _proj_with_subgraph(tmp_path)
+    loop = Loop(sess, graph_name="standard", project_root=proj)
+    _walk_to_verified(loop)
+
+    set_calls: list = []
+    monkeypatch.setattr(loop, "_set_graph_state", lambda s: set_calls.append(s))
+    monkeypatch.setattr(loop.chain, "append", _raise)
+
+    with pytest.raises(RuntimeError):
+        loop.enter_subgraph("deploy", decided_by="kernel")
+    # append raised before the durable graph_state write
+    assert set_calls == []
+
+
+def test_exit_subgraph_audit_failure_does_not_advance_state(tmp_path: Path, monkeypatch):
+    proj, sess = _proj_with_subgraph(tmp_path)
+    loop = Loop(sess, graph_name="standard", project_root=proj)
+    _walk_to_verified(loop)
+    loop.enter_subgraph("deploy", decided_by="kernel")
+
+    set_calls: list = []
+    monkeypatch.setattr(loop, "_set_graph_state", lambda s: set_calls.append(s))
+    monkeypatch.setattr(loop.chain, "append", _raise)
+
+    with pytest.raises(RuntimeError):
+        loop.exit_subgraph(decided_by="kernel", force=True)
+    assert set_calls == []

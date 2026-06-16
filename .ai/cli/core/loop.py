@@ -311,8 +311,9 @@ class Loop:
         self._index = self._build_index()
 
         new_state = self.graph["initial_state"]
-        self._set_graph_state(new_state)
 
+        # Audit before the durable graph_state write (D9 / T0.1 parity): a
+        # failed append must not leave the subgraph entered with no record.
         self.chain.append(
             "loop.subgraph.entered",
             {
@@ -325,6 +326,7 @@ class Loop:
                 "evidence": evidence or {},
             },
         )
+        self._set_graph_state(new_state)
         return new_state
 
     def exit_subgraph(
@@ -370,8 +372,8 @@ class Loop:
         self._index = self._build_index()
         if outer_state is None:
             outer_state = self.graph["initial_state"]
-        self._set_graph_state(outer_state)
 
+        # Audit before the durable graph_state write (D9 / T0.1 parity).
         self.chain.append(
             "loop.subgraph.exited",
             {
@@ -385,4 +387,5 @@ class Loop:
                 "evidence": evidence or {},
             },
         )
+        self._set_graph_state(outer_state)
         return outer_state
