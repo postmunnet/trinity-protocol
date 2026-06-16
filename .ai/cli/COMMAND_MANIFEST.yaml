@@ -81,6 +81,11 @@ rituals:
     status: supported
     notes: 'Archive the session capsule after graph DONE/DEAD and prod verify pass. `ai close run` remains supported.'
 
+  abort:
+    canonical: 'ai abort --reason "<why>"'
+    status: supported
+    notes: 'ADR-0001 D3 — human operator_abort fires an active session (THINK/SANDBOX/DO/VERIFIED) to terminal DEAD (decided_by=human). --reason required; seal afterward with `ai close`.'
+
 # ---------------------------------------------------------------------------
 # Top-level command aliases (where ritual ≠ command name)
 # ---------------------------------------------------------------------------

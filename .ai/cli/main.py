@@ -20,6 +20,7 @@ from .commands import doc_drift as doc_drift_cmd
 from .commands import doctor as doctor_cmd
 from .commands import config as config_cmd
 from .commands import migrate_state as migrate_state_cmd
+from .commands import abort as abort_cmd
 
 # Layer 3 — bare `ai` invokes `ai next` (state-aware next-step
 # prompter), unless --help / -h is passed. We flip
@@ -46,6 +47,7 @@ app.add_typer(vault.app, name="vault")    # v0.5: local secrets vault (demo)
 app.add_typer(project_cmd.app, name="project")  # Hybrid central Trinity + local project binding
 app.add_typer(config_cmd.app, name="config")  # Runtime State Convention — declare runtime root (no home pollution)
 app.add_typer(migrate_state_cmd.app, name="migrate-state")  # Phase D — move legacy home state into runtime
+app.add_typer(abort_cmd.app, name="abort")  # ADR-0001 D3 — human operator_abort (active -> DEAD)
 # Phase 1 — Goal Loop short-code rituals (driven by graphs/standard.yaml)
 app.add_typer(sss_cmd.app, name="sss")        # Ritual alias — `ai sss <task>` ≡ `ai session new <task>`
 app.add_typer(vvv_cmd.app, name="vvv")        # 5 questions
