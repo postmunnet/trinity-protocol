@@ -125,6 +125,35 @@ def test_verify_fail_terminates_with_step_failed(tmp_path: Path, monkeypatch) ->
     assert loop.current() == "DO"
 
 
+def test_evidence_fail_is_needs_human_non_terminal(tmp_path: Path, monkeypatch) -> None:
+    # ADR-0001 (Option A): an evidence-command failure is a recoverable
+    # verification failure → NEEDS_HUMAN, not a terminal DEAD. The graph stays
+    # parked in DO and verify_dead is NOT fired; Exit(1) is preserved.
+    proj, sess = _seed_at_do(
+        tmp_path,
+        [{"n": 1, "title": "doomed step", "verify": {"command": "false"}}],
+    )
+    monkeypatch.chdir(proj)
+    with pytest.raises(typer.Exit) as exc_info:
+        _run("step_complete", False)
+    assert exc_info.value.exit_code == 1
+
+    ev = next(
+        e for e in _chain_events(proj, "gogogo.step_failed")
+        if e["details"].get("verifier_mode") == "evidence_command"
+    )
+    assert ev["details"]["verifier_verdict"] == "NEEDS_HUMAN"
+    assert ev["details"].get("reason_code") == "evidence_command_failed"
+
+    # non-terminal: parked in DO, no DEAD graph transition fired
+    loop = Loop(sess, graph_name="standard", project_root=proj)
+    assert loop.current() == "DO"
+    assert all(
+        t["details"].get("to_state") != "DEAD"
+        for t in _chain_events(proj, "graph.transition")
+    )
+
+
 def test_step_without_verify_unchanged(tmp_path: Path, monkeypatch) -> None:
     proj, sess = _seed_at_do(
         tmp_path,

@@ -1001,7 +1001,15 @@ def _gogogo_inner(
                 f"{evidence['duration_seconds']:.3f}s)"
             )
             if not evidence["ok"]:
-                # D11 — a clear evidence failure is DEAD, NOT NEEDS_HUMAN.
+                # ADR-0001 — an evidence-command failure (verify.command exit
+                # mismatch) is a *recoverable* verification failure, NOT a
+                # terminal session failure: a human or agent can fix the code
+                # and retry. So it is NEEDS_HUMAN, not DEAD, and it must not
+                # fire verify_dead — the graph stays parked in DO. (Supersedes
+                # the earlier D11 "evidence failure is DEAD" labelling, which
+                # was a semantic mislabel: the loop already parked in DO and
+                # never transitioned to DEAD.) Exit(1) is preserved as the
+                # command-failure signal for CI/scripts.
                 loop.chain.append(
                     "gogogo.step_failed",
                     {
@@ -1009,8 +1017,9 @@ def _gogogo_inner(
                         "step_n": n,
                         "title": title,
                         "rule_set": rule_set,
-                        "verifier_verdict": "DEAD",
+                        "verifier_verdict": "NEEDS_HUMAN",
                         "verifier_mode": "evidence_command",
+                        "reason_code": "evidence_command_failed",
                         "verifier_reason": (
                             f"evidence command exit mismatch: "
                             f"exit={evidence['exit_code']} expected={evidence['expect_exit']}"
@@ -1022,7 +1031,8 @@ def _gogogo_inner(
                     },
                 )
                 console.print(
-                    f"[red]Step {n} evidence command failed — terminating loop.[/red]"
+                    f"[red]Step {n} evidence command failed — needs human "
+                    f"(recoverable; graph parked in DO).[/red]"
                 )
                 raise typer.Exit(1)
         elif gate["action"] == "needs_human":
