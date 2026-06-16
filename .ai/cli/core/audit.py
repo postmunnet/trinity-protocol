@@ -36,6 +36,10 @@ from typing import Any, Dict, Iterable, Iterator, Optional
 
 from .recordproxy.emit import emit_via_proxy
 
+# Block size (bytes) for the reverse-streaming tail reader. Module-level so
+# tests can shrink it to force many block boundaries (T3.3).
+_REVERSE_READ_BLOCK = 65536
+
 
 class AuditChainError(Exception):
     pass
@@ -143,13 +147,37 @@ class AuditChain:
                     continue
                 yield json.loads(line)
 
-    def iter_events_reversed(self) -> Iterable[Dict[str, Any]]:
-        """Iterate events from most recent to oldest. Reads the whole file
-        then reverses; simple and O(N) memory. For very long chains
-        consider a tail-seek file reader. Used by Loop.__init__ to walk
-        backwards looking for the latest `graph.transition` event for a
-        session (R6 reconciliation)."""
-        return reversed(list(self.iter_events()))
+    def iter_events_reversed(self) -> Iterator[Dict[str, Any]]:
+        """Iterate events from most recent to oldest, lazily (T3.3).
+
+        Reads the file from the end in blocks and yields one parsed event per
+        line in reverse — so early-exit consumers (Loop._reconcile_from_audit's
+        `break`, lll's take-first-N) only touch the tail instead of loading the
+        whole file into memory. The yielded sequence is identical to the old
+        whole-file reverse (most-recent-first, same parsed events).
+        """
+        if not self.path.exists():
+            return
+        with self.path.open("rb") as f:
+            f.seek(0, os.SEEK_END)
+            pos = f.tell()
+            partial = b""  # bytes of the (earlier-continuing) first line so far
+            while pos > 0:
+                read_size = min(_REVERSE_READ_BLOCK, pos)
+                pos -= read_size
+                f.seek(pos)
+                buf = f.read(read_size) + partial
+                lines = buf.split(b"\n")
+                # lines[0] may be the tail of a line that continues into the
+                # earlier (not-yet-read) block — carry it over.
+                partial = lines[0]
+                for raw in reversed(lines[1:]):
+                    raw = raw.strip()
+                    if raw:
+                        yield json.loads(raw.decode("utf-8"))
+            tail = partial.strip()
+            if tail:
+                yield json.loads(tail.decode("utf-8"))
 
     def validate(self) -> None:
         """Walk the chain; raise AuditChainError if any link is broken."""
