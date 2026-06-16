@@ -25,6 +25,7 @@ from cli.core.verifier import load_rules
 def thin_root(tmp_path: Path) -> Path:
     """A thin-client project root: .ai exists but no policies/graphs."""
     (tmp_path / ".ai").mkdir()
+    (tmp_path / ".ai" / "runtime.yaml").write_text("runtime_code: /tmp/runtime\n")
     return tmp_path
 
 
@@ -39,15 +40,27 @@ def test_resolver_prefers_project_local(thin_root: Path, capsys) -> None:
     assert capsys.readouterr().err == ""  # no note when project-local wins
 
 
-def test_resolver_falls_back_to_kernel_with_loud_note(thin_root: Path, capsys) -> None:
+def test_resolver_falls_back_to_kernel_quietly_for_thin_project(thin_root: Path, capsys) -> None:
     path, source = resolve_ai_resource(
         thin_root, "policies/verifier-rules.yaml", label="verifier"
     )
     assert source == "kernel"
     assert path == kernel_ai_root() / "policies" / "verifier-rules.yaml"
     assert path.is_file()
-    err = capsys.readouterr().err
-    assert "using kernel default" in err
+    assert capsys.readouterr().err == ""
+
+
+def test_resolver_falls_back_to_kernel_with_loud_note_for_non_thin_project(
+    tmp_path: Path, capsys
+) -> None:
+    (tmp_path / ".ai").mkdir()
+    path, source = resolve_ai_resource(
+        tmp_path, "policies/verifier-rules.yaml", label="verifier"
+    )
+    assert source == "kernel"
+    assert path == kernel_ai_root() / "policies" / "verifier-rules.yaml"
+    assert path.is_file()
+    assert "using kernel default" in capsys.readouterr().err
 
 
 def test_resolver_missing_both(thin_root: Path) -> None:
@@ -83,7 +96,7 @@ def test_policy_doc_thin_client_uses_kernel_baseline(thin_root: Path, capsys) ->
     # kernel ships a baseline trinity_policy.yaml — thin client gets it
     assert isinstance(doc, dict)
     assert doc != {}
-    assert "using kernel default" in capsys.readouterr().err
+    assert capsys.readouterr().err == ""
 
 
 def test_policy_doc_corrupt_is_loud_default_deny(thin_root: Path, capsys) -> None:
