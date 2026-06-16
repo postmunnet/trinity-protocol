@@ -25,12 +25,14 @@ file kept in memory.
 """
 from __future__ import annotations
 
+import contextlib
 import datetime
+import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Iterator, Optional
 
 from .recordproxy.emit import emit_via_proxy
 
@@ -76,6 +78,25 @@ class AuditChain:
         except json.JSONDecodeError:
             raise AuditChainError(f"corrupt last line in {self.path}")
 
+    @contextlib.contextmanager
+    def _exclusive_append_lock(self) -> Iterator[None]:
+        """Hold a POSIX exclusive lock across the append critical section so
+        concurrent appenders (tg-bot + tmux + multi-agent) cannot read the same
+        last_hash and fork the chain (T3.1). The lock is taken on a sidecar
+        ``events.ndjson.lock`` file, held only for the read-last-hash + write,
+        and auto-releases on close / process death — so there is no stale-lock
+        concern (unlike the long-held session .state/LOCK). POSIX only
+        (darwin/linux); the kernel targets those platforms."""
+        lock_path = self.path.parent / (self.path.name + ".lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+
     def append(
         self,
         event_type: str,
@@ -91,22 +112,25 @@ class AuditChain:
         ``event_type`` + ``details`` as before; promoted fields are
         extracted from ``details`` when present.
         """
-        prev = self.last_hash() or "0"
-        event = emit_via_proxy(
-            event_type,
-            details,
-            prev_hash=prev,
-            ts=ts or self._now_iso(),
-        )
-        canonical = self._canonical(event)
-        event["hash"] = self._hash(canonical)
+        # T3.1 — serialize the read-last-hash + write so concurrent appenders
+        # cannot fork the chain on a shared prev_hash.
+        with self._exclusive_append_lock():
+            prev = self.last_hash() or "0"
+            event = emit_via_proxy(
+                event_type,
+                details,
+                prev_hash=prev,
+                ts=ts or self._now_iso(),
+            )
+            canonical = self._canonical(event)
+            event["hash"] = self._hash(canonical)
 
-        line = json.dumps(event, separators=(",", ":")) + "\n"
-        # Append + fsync for crash safety.
-        with self.path.open("a", encoding="utf-8") as f:
-            f.write(line)
-            f.flush()
-            os.fsync(f.fileno())
+            line = json.dumps(event, separators=(",", ":")) + "\n"
+            # Append + fsync for crash safety.
+            with self.path.open("a", encoding="utf-8") as f:
+                f.write(line)
+                f.flush()
+                os.fsync(f.fileno())
         return event
 
     def iter_events(self) -> Iterable[Dict[str, Any]]:
