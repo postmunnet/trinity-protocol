@@ -167,6 +167,53 @@ STANDARD_TRANSITIONS: List[StateTransition] = [
             "documentation/refactor/admin sessions close without ddd"
         ),
     ),
+    # ─────────── DEAD entry (ADR-0001, Option A) ───────────
+    StateTransition(
+        from_state="DO",
+        to_state="DEAD",
+        trigger="verify_dead",
+        decided_by="verifier",
+        notes="T9 — terminal verifier failure; DO→DEAD fired by gogogo only when a matched dead_when rule has dead_is_terminal=true (ADR-0001 D2)",
+    ),
+    StateTransition(
+        from_state="THINK",
+        to_state="DEAD",
+        trigger="operator_abort",
+        decided_by="human",
+        require_human_approval=True,
+        notes="T10 — explicit human abort from THINK; ADR-0001 D3",
+    ),
+    StateTransition(
+        from_state="SANDBOX",
+        to_state="DEAD",
+        trigger="operator_abort",
+        decided_by="human",
+        require_human_approval=True,
+        notes="T11 — explicit human abort from SANDBOX; ADR-0001 D3",
+    ),
+    StateTransition(
+        from_state="DO",
+        to_state="DEAD",
+        trigger="operator_abort",
+        decided_by="human",
+        require_human_approval=True,
+        notes="T12 — explicit human abort from DO; ADR-0001 D3",
+    ),
+    StateTransition(
+        from_state="VERIFIED",
+        to_state="DEAD",
+        trigger="operator_abort",
+        decided_by="human",
+        require_human_approval=True,
+        notes="T13 — explicit human abort from VERIFIED; ADR-0001 D3",
+    ),
+    StateTransition(
+        from_state="RETRO",
+        to_state="DEAD",
+        trigger="retro_integrity_failed",
+        decided_by="verifier",
+        notes="T14 — retro integrity failure; RETRO→DEAD (ADR-0001)",
+    ),
 ]
 
 

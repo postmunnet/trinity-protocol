@@ -75,3 +75,42 @@ transitions:
     to: RETRO
     trigger: rrr
     decided_by: kernel
+
+  # ─────────── DEAD entry (ADR-0001, Option A) ───────────
+  # Terminal session failure. Entry is closed-world: verifier (only via a
+  # matched dead_when rule with dead_is_terminal=true), human (explicit
+  # operator_abort), or retro integrity failure. No ANY -> DEAD. policy_fatal
+  # is DEFERRED (ADR-0001 D4). The terminal guard prevents firing out of DEAD.
+  - from: DO
+    to: DEAD
+    trigger: verify_dead
+    decided_by: verifier
+
+  - from: THINK
+    to: DEAD
+    trigger: operator_abort
+    decided_by: human
+    require_human_approval: true
+
+  - from: SANDBOX
+    to: DEAD
+    trigger: operator_abort
+    decided_by: human
+    require_human_approval: true
+
+  - from: DO
+    to: DEAD
+    trigger: operator_abort
+    decided_by: human
+    require_human_approval: true
+
+  - from: VERIFIED
+    to: DEAD
+    trigger: operator_abort
+    decided_by: human
+    require_human_approval: true
+
+  - from: RETRO
+    to: DEAD
+    trigger: retro_integrity_failed
+    decided_by: verifier

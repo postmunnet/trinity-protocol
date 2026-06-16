@@ -91,6 +91,20 @@ app = typer.Typer()
 console = Console()
 
 
+def _dead_is_terminal(rule_set_name: str, rules_doc: Dict[str, Any]) -> bool:
+    """ADR-0001 D2 — is a DEAD verdict from `rule_set_name` a *terminal* graph
+    failure?
+
+    Rule-derived: True only when the matched rule-set declares
+    ``dead_is_terminal: true``. Default False (a DEAD verdict from an
+    unclassified rule is non-terminal → human escalation, not auto-kill). This
+    is runtime routing metadata read from the rules doc — it is never a
+    persisted verdict/schema field and is never AI-declared.
+    """
+    rule_cfg = (rules_doc.get("verifier_rules") or {}).get(rule_set_name) or {}
+    return bool(rule_cfg.get("dead_is_terminal", False))
+
+
 def _verify_step(
     step: Dict[str, Any],
     rule_set_name: str,
@@ -1050,10 +1064,48 @@ def _gogogo_inner(
         )
 
         if verdict.verdict == "DEAD":
-            console.print(
-                f"[red]Step {n} DEAD — terminating loop.[/red]"
+            # ADR-0001 D2 — rule-derived terminality. A DEAD verdict is a
+            # *terminal* graph failure only when its matched rule-set declares
+            # dead_is_terminal=true (default false; runtime routing metadata —
+            # never a persisted verdict/schema field, never AI-declared).
+            if _dead_is_terminal(verdict.rule_set, rules_doc):
+                # Terminal DEAD: close the orphaned-terminal-DEAD gap — fire the
+                # graph transition DO->DEAD instead of a bare Exit that strands
+                # graph_state in DO.
+                loop.fire(
+                    "verify_dead",
+                    decided_by="verifier",
+                    evidence={
+                        "step_n": n,
+                        "rule_set": verdict.rule_set,
+                        "verifier_reason": verdict.reason,
+                    },
+                )
+                console.print(
+                    f"[red]Step {n} terminal DEAD — fired DO->DEAD.[/red]"
+                )
+                raise typer.Exit(1)
+            # Non-terminal DEAD: not a terminal graph failure. Park the session
+            # in DO (no graph transition) and escalate to human, audit-backed.
+            loop.chain.append(
+                "verifier.dead_non_terminal",
+                {
+                    "session_id": session_path.name,
+                    "step_n": n,
+                    "title": title,
+                    "rule_set": verdict.rule_set,
+                    "verifier_verdict": "NEEDS_HUMAN",
+                    "verifier_reason": verdict.reason,
+                    "reason_code": "dead_non_terminal",
+                    "decided_by": "verifier",
+                },
             )
-            raise typer.Exit(1)
+            console.print(
+                f"[yellow]Step {n} DEAD but rule is non-terminal "
+                f"(dead_is_terminal=false) — escalating to human; graph "
+                f"parked in DO.[/yellow]"
+            )
+            raise typer.Exit(0)
 
         iterations_done += 1
         # Budget re-check (D11): per-step checkpoint
