@@ -166,3 +166,21 @@ def test_close_terminal_set_includes_dead():
     terminals = get_terminal_states_for_close(project_root)
     assert "DEAD" in terminals
     assert "DONE" in terminals
+
+
+# ─────────── production classification liveness (rule-classification batch) ───────────
+
+
+REAL_RULES = Path(__file__).resolve().parents[2] / "policies" / "verifier-rules.yaml"
+
+
+def test_production_rules_terminal_classification_is_live():
+    """The production verifier-rules.yaml classifies exactly the three
+    operator-ruled terminal rule-sets; step_complete/browser_check stay
+    non-terminal. Proves the T0.4 mechanism is no longer dormant for them."""
+    doc = yaml.safe_load(REAL_RULES.read_text())
+    assert _dead_is_terminal("code_change", doc) is True
+    assert _dead_is_terminal("deploy_check", doc) is True
+    assert _dead_is_terminal("memory_promote", doc) is True
+    assert _dead_is_terminal("step_complete", doc) is False
+    assert _dead_is_terminal("browser_check", doc) is False

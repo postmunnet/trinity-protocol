@@ -99,6 +99,10 @@ verifier_rules:
   # populate these fields before calling gogogo.
   code_change:
     description: "Verify code modifications"
+    # ADR-0001 D2 — DEAD here is a terminal session failure (forbidden/
+    # security/integrity violation during code change is not recoverable).
+    # gogogo fires verify_dead DO->DEAD.
+    dead_is_terminal: true
     pass_when:
       - tests_pass
       - diff_scope_allowed
@@ -142,6 +146,9 @@ verifier_rules:
   # Deployment outcome verification (used by Phase 5 ai ddd).
   deploy_check:
     description: "Verify deployment outcome"
+    # ADR-0001 D2 — DEAD here is terminal (rollback / data-corruption-class
+    # deploy failures are severe terminal session failures).
+    dead_is_terminal: true
     pass_when:
       - health_check_ok
       - smoke_tests_pass
@@ -160,6 +167,9 @@ verifier_rules:
   # Retro -> memory promotion (spec §3.3, paired with `ai rrr -> memory-cli learn`).
   memory_promote:
     description: "Verify retrospective before adding to memory"
+    # ADR-0001 D2 — DEAD here is terminal (an unrecoverable memory-promotion
+    # failure means the session cannot safely promote trustworthy memory).
+    dead_is_terminal: true
     pass_when:
       - schema_valid
       - confidence_ge_0_7

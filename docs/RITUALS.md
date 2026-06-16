@@ -31,6 +31,21 @@ Standard sequence:
 sss -> vvv -> nnn -> gogogo -> ddd -> rrr -> close
 ```
 
+**Terminal failure (`DEAD`).** Per ADR-0001, `DEAD` is a terminal *session*
+failure (the session can no longer produce a trusted completion). It is reached
+out-of-band from the forward sequence by closed-world entry only:
+
+- **verifier** — a step whose matched rule-set declares `dead_is_terminal: true`
+  fires `verify_dead` (`DO -> DEAD`). Production rule-sets so classified:
+  `code_change`, `deploy_check`, `memory_promote`. A DEAD verdict from any other
+  rule-set is *non-terminal* → it parks the session in `DO` and escalates to a
+  human (`verifier.dead_non_terminal`), it does not kill the session.
+- **human** — an explicit, reasoned, audited `operator_abort` from an active
+  state (`THINK/SANDBOX/DO/VERIFIED`).
+
+`policy_fatal -> DEAD` is deferred (ADR-0001 D4). The terminal guard prevents
+firing out of `DEAD`; close seals it as a failure archive (never success).
+
 ---
 
 ## `sss` - Session Capsule / Snapshot / Starting State
@@ -157,6 +172,7 @@ In Trinity v0.1.0 ritual flow, `rrr` delegates memory handoff through
 
 <!-- trinity:changelog:start -->
 - 2026-06-16T15:45:00+07:00 · session 0001_2026-06-16_15_06_pm_feat-kernel-batch1-evidence-first-invariant-h · Batch 1: Declare DEAD as terminal state in graph and enforce terminal guards in Loop engine.
+- 2026-06-16T21:30:00+07:00 · session 0001_2026-06-16_21_14_pm_feat-production-rule-classification-dead-is-t · DEAD entry now reachable in production: code_change/deploy_check/memory_promote rule-sets classified dead_is_terminal=true (verify_dead DO->DEAD); non-terminal DEAD verdicts escalate to human and park in DO.
 <!-- trinity:changelog:end -->
 
 ## Retro artifacts
