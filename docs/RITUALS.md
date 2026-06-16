@@ -155,6 +155,10 @@ In Trinity v0.1.0 ritual flow, `rrr` delegates memory handoff through
 
 ---
 
+<!-- trinity:changelog:start -->
+- 2026-06-16T15:45:00+07:00 · session 0001_2026-06-16_15_06_pm_feat-kernel-batch1-evidence-first-invariant-h · Batch 1: Declare DEAD as terminal state in graph and enforce terminal guards in Loop engine.
+<!-- trinity:changelog:end -->
+
 ## Retro artifacts
 
 When `rrr` runs, Trinity produces **four distinct retro artifacts**. They are

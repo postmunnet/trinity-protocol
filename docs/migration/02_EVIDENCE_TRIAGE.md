@@ -108,13 +108,15 @@ $ grep -rl "<upstream-project>\|smarty\|deploy_dev_order\|FTP_CRED" <upstream-pr
 | File | Lines | Purpose |
 |------|-------|---------|
 | `cli/core/artifacts.py` | 123 | new artifact module |
-| `cli/core/kernel.py` | 112 | new kernel module |
+| `cli/core/kernel.py` | 112 | legacy reference FSM (kept for smoke tests) |
+| `cli/core/loop.py` | (new) | runtime kernel (coordinator) |
 | `cli/core/session_naming.py` | 165 | session naming v2 |
 | `cli/tests/test_session_naming.py` | 183 | tests for above |
 | `docs/SESSION_NAMING.md` | 224 | session naming doc |
 | `docs/V2_MIGRATION.md` | 64 | v1→v2 migration guide |
 | `memory/KNOWN_ISSUES.md` | 166 | brain seed |
 | `memory/TRINITY_IMPROVEMENTS.md` | 367 | brain seed |
+
 
 ### Modified cli files (2 ไฟล์)
 - `cli/commands/debate.py` — +24/-24 lines tweak

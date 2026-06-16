@@ -11,7 +11,9 @@ audience: "Anyone executing or auditing the trinity_v2 migration"
 
 **ปัญหา:** TRINITY_LEGACY เป็น kernel development ปนกับ:
 - legacy artifacts (archive/, sessions เก่า, *_advice.md)
-- uncommitted v2 work (artifacts.py, kernel.py, session_naming.py)
+- uncommitted v2 work (artifacts.py, session_naming.py)
+- runtime kernel components (loop.py, state.py, graph.py, audit.py)
+- legacy FSM reference (kernel.py — kept only for smoke tests)
 - spec pack ใหม่ (TRINITY_EVOLUTION/) ที่ยัง drift จาก code
 
 **ทางแก้:** trinity_v2 = **clean canonical bootstrap/runtime repo** ที่:
@@ -32,8 +34,8 @@ audience: "Anyone executing or auditing the trinity_v2 migration"
 ## 1.3 Locked Decisions (15)
 
 ### D1 — Core source = TRINITY_LEGACY (ไม่ใช่ <upstream-project>)
-**Why:** TRINITY_LEGACY มี v2 work ที่ใหม่กว่า (numbered SANDBOX, session_naming, kernel/artifacts modules) และไม่ปน hardcoded paths/credentials เหมือน <upstream-project>
-**How to apply:** ทุกครั้งที่ต้องเลือกระหว่าง 2 source สำหรับ kernel runtime → ใช้ TRINITY_LEGACY
+**Why:** TRINITY_LEGACY มี v2 work ที่ใหม่กว่า (numbered SANDBOX, session_naming, loop/artifacts/state modules) และไม่ปน hardcoded paths/credentials เหมือน <upstream-project>
+**How to apply:** ทุกครั้งที่ต้องเลือกระหว่าง 2 source สำหรับ kernel runtime → ใช้ TRINITY_LEGACY (Loop + Graph + State + Audit)
 **Source:** Star's analysis §5.1, Claude's refined plan, INDEX.md §3
 
 ### D2 — <upstream-project> = behavior reference, ไม่ใช่ canonical code
@@ -47,7 +49,7 @@ audience: "Anyone executing or auditing the trinity_v2 migration"
 **Source:** User decision (turn 4)
 
 ### D4 — Uncommitted v2 work ที่ TRINITY_LEGACY เอามาด้วย
-**Why:** session_naming.py, kernel.py, artifacts.py + numbered SANDBOX templates คือ source of truth จริงตาม spec — HEAD เก่ากว่า ไม่ตรง spec
+**Why:** session_naming.py, loop.py (runtime kernel), artifacts.py + numbered SANDBOX templates คือ source of truth จริงตาม spec — HEAD เก่ากว่า ไม่ตรง spec; kernel.py is kept only as legacy FSM reference for smoke tests.
 **How to apply:** Commit 3 = direct file copy จาก working tree (ไม่ต้อง commit ที่ TRINITY_LEGACY ก่อน)
 **Source:** User decision (after Star/Gemini brainstorm)
 **Files:** ดู `02_EVIDENCE_TRIAGE.md §4`

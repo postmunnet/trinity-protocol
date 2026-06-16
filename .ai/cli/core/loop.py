@@ -48,6 +48,10 @@ class SubgraphError(LoopError):
     """Sub-graph composition failed (cycle, terminal mismatch, etc.)."""
 
 
+class TerminalStateLocked(LoopError):
+    """Terminal graph states cannot fire further transitions."""
+
+
 VALID_AUTHORITIES = {"verifier", "policy", "human", "kernel"}
 
 
@@ -125,6 +129,15 @@ class Loop:
             raise GraphInvalid(
                 f"initial_state {g['initial_state']!r} not in states"
             )
+
+        terminal_states = set(g.get("terminal_states", []))
+        states = set(g["states"])
+        missing = terminal_states - states
+        if missing:
+            raise GraphInvalid(
+                f"terminal_states not declared in states: {sorted(missing)}"
+            )
+
         for i, t in enumerate(g["transitions"]):
             for key in ("from", "to", "trigger", "decided_by"):
                 if key not in t:
@@ -168,6 +181,11 @@ class Loop:
     ) -> str:
         """Apply a transition; raise on missing match or wrong authority."""
         cur = self.current()
+        if self.is_terminal(cur):
+            raise TerminalStateLocked(
+                f"terminal state {cur!r} cannot fire trigger {trigger!r}"
+            )
+
         # Try state-specific match first; fall back to ANY (e.g. policy_violation)
         transition = self._index.get((cur, trigger)) or self._index.get(
             ("ANY", trigger)
@@ -184,7 +202,6 @@ class Loop:
                 f"requires decided_by={expected!r}, got {decided_by!r}"
             )
         new_state = transition["to"]
-        self._set_graph_state(new_state)
         self.chain.append(
             "graph.transition",
             {
@@ -197,6 +214,7 @@ class Loop:
                 "evidence": evidence or {},
             },
         )
+        self._set_graph_state(new_state)
         return new_state
 
     def _set_graph_state(self, new_state: str) -> None:

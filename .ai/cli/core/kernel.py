@@ -1,3 +1,10 @@
+"""LEGACY REFERENCE FSM.
+
+This module is NOT the runtime Trinity kernel. Runtime transition authority
+lives in ``cli.core.loop.Loop`` and the declarative graph YAML. Do not use this
+module for production state transitions; it remains only for legacy/reference
+smoke tests.
+"""
 from __future__ import annotations
 import time
 from enum import Enum

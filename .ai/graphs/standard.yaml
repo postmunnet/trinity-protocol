@@ -21,6 +21,7 @@ states:
   - DEPLOYED
   - RETRO
   - DONE
+  - DEAD
 
 initial_state: READY
 terminal_states: [DONE, DEAD]
