@@ -68,4 +68,8 @@ Result: vvv / nnn / gogogo become safely generated → removed from
         CLAUDE_MANUAL_PENDING_P3 → re-rendered → 7/7 generated.
 ```
 
-Until the section contract above exists, the 3 files remain manual-pending-P3.
+**Status: SHIPPED 2026-06-18 (Fork A, commit 1687692).** The section contract
+above is implemented as the delimited `trinity:claude-section:operational`
+region (not nested frontmatter fields — that kept `_parse_frontmatter`
+scalar-only). vvv / nnn / gogogo are now generated 7/7 and
+`CLAUDE_MANUAL_PENDING_P3` is empty.
