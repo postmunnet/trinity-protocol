@@ -17,13 +17,18 @@ Last reconciled: 2026-06-18 (R30 layered-rendering wording + B-lite surface rend
 | **cursor** | `.cursor/rules/*.mdc` (7/7) | ✅ generated |
 | **warp** | `.warp/workflows/*.yaml` (7/7) | ✅ generated |
 | **agents** | `.ai/shims/AGENTS_FRAGMENT.md` | ✅ generated |
-| **claude** | `.claude/commands/{lll,rrr,ddd,sss}.md` (4/7) | ✅ generated |
-| **claude** | `.claude/commands/{vvv,nnn,gogogo}.md` (3/7) | 🛑 **manual-pending-P3** |
+| **claude** | `.claude/commands/*.md` (**7/7**) | ✅ generated |
 
-## Why 3 Claude files are still manual (TEMPORARY, NOT a permanent exception)
+**P3 SHIPPED 2026-06-18 (Fork A):** the former manual-pending-P3 trio
+(`vvv`, `nnn`, `gogogo`) is now **generated 7/7**. Their per-ritual operational
+content lives in a delimited `trinity:claude-section:operational` region inside
+each `SHIM.md` body, which `render_claude_code()` extracts and emits in place of
+the generic implementation block. `CLAUDE_MANUAL_PENDING_P3` is now empty.
 
-`vvv`, `nnn`, `gogogo` Claude command files carry **per-ritual operational
-content** that the frontmatter-only generator cannot emit:
+## History — why these 3 were briefly manual (B-lite → P3)
+
+Before P3, `vvv`, `nnn`, `gogogo` Claude command files carried **per-ritual
+operational content** the frontmatter-only generator could not emit:
 
 - **vvv** — two-phase invocation (`ai vvv --show` → `ai vvv --answer`), the
   "why not bare `ai vvv`" audit-pollution warning, the pre-flight (session
@@ -31,10 +36,8 @@ content** that the frontmatter-only generator cannot emit:
 - **nnn** — ritual-specific plan-envelope / budget operational guidance.
 - **gogogo** — ritual-specific incremental-execution / evidence-gate guidance.
 
-Re-rendering these today with the generic generator would **regress** that
-content. They therefore stay hand-authored **until P3 lands**. This deferral is
-**tracked and tripwired**, not silent: see
-`core/trinity_v2/.ai/cli/tests/test_shim_render.py` →
+During B-lite these stayed hand-authored, **tracked and tripwired** (not silent):
+see `core/trinity_v2/.ai/cli/tests/test_shim_render.py` →
 `CLAUDE_MANUAL_PENDING_P3` + `test_pending_p3_*`. The tripwire test fails LOUD
 if the generator ever starts emitting that per-ritual content, forcing this set
 to be revisited (so the deferral can never rot into a forgotten exception).

@@ -8,6 +8,8 @@ import pytest
 from cli.core.shim_render import (
     SHORT_CODES,
     VENDORS,
+    ShimSpec,
+    _extract_claude_operational,
     load_all_shims,
     load_shim,
     render_all,
@@ -189,43 +191,83 @@ def test_claude_adapter_is_rich_r30_two_layer():
     assert ".ai/shims/lll/templates/<channel>.md" in out
 
 
-# ─── manual-pending-P3 Claude surfaces (B-lite, 2026-06-18) ───
-# These Claude command files carry per-ritual operational content the
-# frontmatter-only generator cannot emit yet (two-phase invocation, pre-flight,
-# audit-pollution warnings). They stay HAND-AUTHORED **temporarily**, blocked by
-# P3 (structured per-ritual adapter content) — a TRACKED, TRIPWIRED deferral,
-# NOT a permanent hand-maintained exception. Ownership manifest:
-# docs/dev/shim-surface-ownership.md.
-CLAUDE_MANUAL_PENDING_P3 = {
-    "vvv",     # two-phase --show/--answer; "why not bare ai vvv" audit warning; pre-flight
-    "nnn",     # ritual-specific plan-envelope operational guidance not generated yet
-    "gogogo",  # ritual-specific incremental-execution guidance not generated yet
-}
+# ─── P3 SHIPPED (Fork A, 2026-06-18) — structured per-ritual Claude content ───
+# P3 closed the B-lite deferral: vvv/nnn/gogogo now generate their per-ritual
+# operational content from a delimited `trinity:claude-section:operational`
+# region in each SHIM.md body. The pending set is now EMPTY (7/7 generated).
+# Ownership manifest: docs/dev/shim-surface-ownership.md.
+CLAUDE_MANUAL_PENDING_P3 = set()
 
 
-def test_pending_p3_set_is_subset_of_short_codes():
-    assert CLAUDE_MANUAL_PENDING_P3 <= set(SHORT_CODES)
+def test_pending_p3_set_is_empty_p3_shipped():
+    # 7/7 Claude surfaces are generated; no ritual remains hand-maintained.
+    assert CLAUDE_MANUAL_PENDING_P3 == set()
 
 
-def test_pending_p3_ownership_doc_exists_and_lists_them():
+def test_pending_p3_ownership_doc_reflects_completion():
     doc = REPO_ROOT / "docs" / "dev" / "shim-surface-ownership.md"
-    assert doc.exists(), "ownership manifest missing — the deferral must stay documented"
-    text = doc.read_text(encoding="utf-8")
-    assert "manual-pending-P3" in text
-    for code in CLAUDE_MANUAL_PENDING_P3:
-        assert code in text
+    assert doc.exists(), "ownership manifest missing — surface ownership must stay documented"
+    text = doc.read_text(encoding="utf-8").lower()
+    assert "7/7" in text  # all Claude surfaces generated
 
 
-def test_pending_p3_tripwire_generator_still_cannot_emit_ritual_content():
-    """TRIPWIRE: while these rituals are pending, the generic generator must NOT
-    yet emit their per-ritual operational content. When P3 teaches the generator
-    to emit it, this test fails LOUD — forcing the ritual to be removed from
-    CLAUDE_MANUAL_PENDING_P3 and re-rendered (so the deferral can never rot into
-    a forgotten permanent exception)."""
-    vvv_out = render_one("claude-code", _spec("vvv")).lower()
-    assert "--show" not in vvv_out, (
-        "generator now emits vvv two-phase content — P3 may be done: "
-        "remove 'vvv' from CLAUDE_MANUAL_PENDING_P3 and re-render it"
+def test_p3_per_ritual_operational_now_generated():
+    """The flipped tripwire: the generator now DOES emit each ritual's per-ritual
+    operational content (the inverse of the B-lite tripwire that asserted absence)."""
+    vvv = render_one("claude-code", _spec("vvv")).lower()
+    assert "--show" in vvv
+    assert "pre-flight" in vvv
+    assert "why not bare" in vvv
+    nnn = render_one("claude-code", _spec("nnn")).lower()
+    assert "plan-envelope" in nnn
+    gogogo = render_one("claude-code", _spec("gogogo")).lower()
+    assert "plan.json" in gogogo
+
+
+# ─── P3 extractor contract: present / missing / duplicate / unrelated-body ───
+
+_START = "<!-- trinity:claude-section:operational:start -->"
+_END = "<!-- trinity:claude-section:operational:end -->"
+
+
+def test_extract_present_returns_inner_only():
+    body = f"intro\n\n{_START}\nOPERATIONAL HERE\n{_END}\n\noutro"
+    assert _extract_claude_operational(body) == "OPERATIONAL HERE"
+
+
+def test_extract_missing_returns_none():
+    assert _extract_claude_operational("just a normal SHIM.md body, no section") is None
+
+
+def test_extract_duplicate_section_raises():
+    body = f"{_START}\nA\n{_END}\n{_START}\nB\n{_END}"
+    with pytest.raises(ValueError):
+        _extract_claude_operational(body)
+
+
+def test_extract_end_before_start_raises():
+    body = f"{_END}\nbroken\n{_START}"
+    with pytest.raises(ValueError):
+        _extract_claude_operational(body)
+
+
+def test_unrelated_body_text_is_not_rendered():
+    # Proves this is structured extraction, NOT raw body injection: text in the
+    # SHIM.md body OUTSIDE the delimited section never reaches the adapter.
+    spec = ShimSpec(
+        code="vvv", purpose="Verify", status="", last_updated="",
+        body=(
+            f"SENTINEL_OUTSIDE_BODY should never render\n\n"
+            f"{_START}\nthe operational content\n{_END}\n\n"
+            f"ANOTHER_SENTINEL also outside"
+        ),
+        claude_operational=_extract_claude_operational(
+            f"SENTINEL_OUTSIDE_BODY should never render\n\n"
+            f"{_START}\nthe operational content\n{_END}\n\n"
+            f"ANOTHER_SENTINEL also outside"
+        ),
     )
-    assert "pre-flight" not in vvv_out
-    assert "why not bare" not in vvv_out
+    out = render_one("claude-code", spec)
+    assert "the operational content" in out
+    assert "SENTINEL_OUTSIDE_BODY" not in out
+    assert "ANOTHER_SENTINEL" not in out

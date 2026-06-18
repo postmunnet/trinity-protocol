@@ -183,3 +183,38 @@ Adapters should:
 
 See `docs/ai_entry/SHORT_CODES.md §vvv` for ritual wording. The
 **5-question contract** is reinforced in `BOUNDARIES.md`.
+
+<!-- trinity:claude-section:operational:start -->
+## Implementation (two-phase — do NOT invoke bare `ai vvv`)
+
+**Phase 1 — show questions (read-only, exit 0):**
+
+```bash
+!ai vvv --show
+```
+
+Render the 5 questions to the operator. The agent MAY draft answers, but MUST
+show the draft and get explicit operator approval before submitting
+(show-before-submit). The drafted Q2 (Scope) answer MUST embed the concrete
+files-expected list (paths the agent plans to touch).
+
+**Phase 2 — submit approved answers:**
+
+```bash
+!ai vvv --answer 1=... --answer 2=... --answer 3=... --answer 4=... --answer 5=...
+# or, for long/multi-line answers:
+!ai vvv --answers-file <path/to/answers.json>
+```
+
+## Why not bare `ai vvv`?
+
+Bare `ai vvv` with no answers is treated by the kernel as a **failed
+submission**: it exits 2 AND appends a `vvv.failed` (reason: missing_answers)
+event to the audit chain. Using it as a "question prompt" pollutes the audit
+trail. `--show` is the prompt mode: exit 0, no writes, no audit event.
+
+## Pre-flight
+
+An active session is required (`sss <task-slug>` first). The adapter must refuse
+and point to `sss` when no session is active.
+<!-- trinity:claude-section:operational:end -->

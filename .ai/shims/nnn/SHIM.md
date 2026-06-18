@@ -114,3 +114,24 @@ THINK/03_ACCEPTANCE.md     ← measurable success criteria
 ## Canonical user-facing text
 
 See `docs/ai_entry/SHORT_CODES.md §nnn`.
+
+<!-- trinity:claude-section:operational:start -->
+## Implementation
+
+1. Author the plan envelope JSON (steps with `verify:{command,expect_exit}`
+   bindings, `estimated_duration_minutes`, optional `budget_override` with
+   `decided_by: human` + reason when estimates exceed
+   `.ai/policies/loop-budget.yaml` defaults). **`--plan-envelope` is required** —
+   bare `ai nnn` fails immediately with a usage error.
+2. **Show the draft envelope to the operator and get approval**
+   (show-before-submit) — the worker never authors plan envelopes or labels
+   `decided_by: human` unilaterally.
+3. Submit:
+
+```bash
+!ai nnn --plan-envelope <path/to/plan_envelope.json>
+```
+
+Writes `THINK/02_SCOPE.md` + `THINK/03_ACCEPTANCE.md` + `.state/plan.json` and
+fires `nnn_pass` (SANDBOX→DO).
+<!-- trinity:claude-section:operational:end -->

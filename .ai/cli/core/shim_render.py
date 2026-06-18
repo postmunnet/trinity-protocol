@@ -39,6 +39,46 @@ class ShimSpec:
     status: str
     last_updated: str
     body: str
+    # P3: per-ritual Claude operational content extracted from the SHIM.md body's
+    # delimited `trinity:claude-section:operational` region. None = no section
+    # (the Claude adapter falls back to the generic implementation block).
+    claude_operational: Optional[str] = None
+
+
+# P3 (Fork A) — structured body-section contract for per-ritual Claude adapter
+# content. The renderer extracts ONLY the text between these exact markers; it
+# never renders the rest of the SHIM.md body (proves this is structured
+# extraction, not raw body injection).
+_CLAUDE_OP_START = "<!-- trinity:claude-section:operational:start -->"
+_CLAUDE_OP_END = "<!-- trinity:claude-section:operational:end -->"
+
+
+def _extract_claude_operational(body: str) -> Optional[str]:
+    """Return the inner text of the delimited Claude operational section.
+
+    - present (exactly one start + one end, in order) -> inner text, stripped
+    - missing (zero start + zero end)                 -> None (generic fallback)
+    - malformed (count mismatch, or end-before-start) -> ValueError (never a
+      silent drop)
+
+    Content outside the delimiters is never returned.
+    """
+    starts = body.count(_CLAUDE_OP_START)
+    ends = body.count(_CLAUDE_OP_END)
+    if starts == 0 and ends == 0:
+        return None
+    if starts != 1 or ends != 1:
+        raise ValueError(
+            "malformed claude-operational section: "
+            f"{starts} start / {ends} end marker(s) (expected exactly 1 each)"
+        )
+    i = body.index(_CLAUDE_OP_START) + len(_CLAUDE_OP_START)
+    j = body.index(_CLAUDE_OP_END)
+    if j < i:
+        raise ValueError(
+            "malformed claude-operational section: end marker precedes start"
+        )
+    return body[i:j].strip()
 
 
 def _parse_frontmatter(text: str) -> Tuple[Dict[str, str], str]:
@@ -74,6 +114,7 @@ def load_shim(shims_dir: Path, code: str) -> ShimSpec:
         status=fm.get("status", ""),
         last_updated=fm.get("last-updated", ""),
         body=body,
+        claude_operational=_extract_claude_operational(body),
     )
 
 
@@ -85,7 +126,9 @@ def load_all_shims(shims_dir: Path) -> List[ShimSpec]:
 
 
 def render_claude_code(spec: ShimSpec) -> str:
-    return (
+    # Universal R30 head — every Claude adapter gets the two-layer rendering
+    # contract regardless of ritual.
+    head = (
         f"# `{spec.code}` — {spec.purpose}\n\n"
         f"Run the Trinity ritual `{spec.code}` via the kernel CLI.\n\n"
         f"## What this does\n\n"
@@ -103,12 +146,23 @@ def render_claude_code(spec: ShimSpec) -> str:
         f"keeps additions minimal; mobile re-formats per its template "
         f"because the transport strips panels anyway. Commentary must "
         f"never contradict or reinterpret a kernel verdict.\n\n"
-        f"## Implementation\n\n"
-        f"```bash\n"
-        f"!ai {spec.code}\n"
-        f"```\n\n"
-        f"## Canonical spec\n\n"
-        f"`.ai/shims/{spec.code}/SHIM.md`\n"
+    )
+    # P3: when the SHIM.md declares a structured operational section, it OWNS the
+    # ritual-specific "how to invoke + caveats" (replaces the generic block).
+    # Otherwise emit the generic single-command implementation (lll/rrr/ddd/sss).
+    if spec.claude_operational:
+        middle = spec.claude_operational.rstrip() + "\n\n"
+    else:
+        middle = (
+            f"## Implementation\n\n"
+            f"```bash\n"
+            f"!ai {spec.code}\n"
+            f"```\n\n"
+        )
+    return (
+        head
+        + middle
+        + f"## Canonical spec\n\n`.ai/shims/{spec.code}/SHIM.md`\n"
     )
 
 

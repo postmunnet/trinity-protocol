@@ -103,3 +103,19 @@ CONTROL/VERIFY.md            ← per-step verifier log (append-only)
 
 See `docs/ai_entry/SHORT_CODES.md §gogogo` and
 `docs/ai_entry/WORKFLOW.md` for state-machine details.
+
+<!-- trinity:claude-section:operational:start -->
+## Pre-flight
+
+Requires `.state/plan.json` (written by `nnn`) in the active session — without
+it the kernel exits 2. Sequence: `vvv` → `nnn --plan-envelope` → `gogogo`. The
+kernel tracks state but does not build artifacts for you: do the work for each
+step first, then let the verifier consume the step's
+`verify:{command,expect_exit}` evidence.
+
+## Implementation
+
+```bash
+!ai gogogo
+```
+<!-- trinity:claude-section:operational:end -->
