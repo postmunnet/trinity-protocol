@@ -138,3 +138,94 @@ def test_agents_render_produces_single_fragment_file(tmp_path: Path):
     body = (proj / rel).read_text(encoding="utf-8")
     for code in SHORT_CODES:
         assert f"`{code}`" in body
+
+
+# ─── R30 layered-rendering doctrine (supersedes pre-R30 "no commentary") ───
+# Operator decision 2026-06-12: kernel artifacts shown verbatim, but the agent
+# MAY add surrounding orientation per the channel template. The renderer text
+# must not re-emit the absolutist pre-R30 framing on `ai shim render`.
+
+_PRE_R30_BANNED = (
+    "must not add commentary",
+    "do not narrate",
+    "return its output verbatim",
+    "return the kernel response verbatim",
+    "return the output verbatim",
+    "render the kernel output as-is",
+)
+
+
+@pytest.mark.parametrize("vendor", ["claude-code", "cursor", "agents"])
+def test_renderers_are_r30_layered_not_absolutist(vendor):
+    out = render_one(vendor, _spec("vvv")).lower()
+    # pre-R30 absolutist phrasing must be gone
+    for banned in _PRE_R30_BANNED:
+        assert banned not in out, f"{vendor} still emits pre-R30 phrase: {banned!r}"
+    # R30 doctrine must be present: artifacts verbatim, orientation allowed,
+    # verdict never reinterpreted
+    assert "verbatim" in out          # artifacts still shown verbatim
+    assert "orientation" in out       # surrounding orientation now allowed
+    assert "verdict" in out           # must never alter/reinterpret a verdict
+
+
+def test_claude_adapter_points_at_channel_template():
+    # R30: the claude adapter should hint at the per-channel template path so
+    # the agent knows where the surrounding-text rules live.
+    out = render_one("claude-code", _spec("gogogo"))
+    assert "templates/" in out
+
+
+def test_claude_adapter_is_rich_r30_two_layer():
+    # B-lite: the generator (not a hand-edited surface file) is the source of
+    # truth for the richer Claude two-layer R30 block. Re-rendering Claude must
+    # be non-regressive vs the previously hand-authored .claude/commands/*.md.
+    out = render_one("claude-code", _spec("lll"))
+    low = out.lower()
+    assert "render in two layers" in low
+    assert "operator decision 2026-06-12" in low
+    assert "kernel artifacts are verbatim" in low
+    assert "around the artifact" in low
+    # template path is parametrised per code (improves on the generic <ritual>)
+    assert ".ai/shims/lll/templates/<channel>.md" in out
+
+
+# ─── manual-pending-P3 Claude surfaces (B-lite, 2026-06-18) ───
+# These Claude command files carry per-ritual operational content the
+# frontmatter-only generator cannot emit yet (two-phase invocation, pre-flight,
+# audit-pollution warnings). They stay HAND-AUTHORED **temporarily**, blocked by
+# P3 (structured per-ritual adapter content) — a TRACKED, TRIPWIRED deferral,
+# NOT a permanent hand-maintained exception. Ownership manifest:
+# docs/dev/shim-surface-ownership.md.
+CLAUDE_MANUAL_PENDING_P3 = {
+    "vvv",     # two-phase --show/--answer; "why not bare ai vvv" audit warning; pre-flight
+    "nnn",     # ritual-specific plan-envelope operational guidance not generated yet
+    "gogogo",  # ritual-specific incremental-execution guidance not generated yet
+}
+
+
+def test_pending_p3_set_is_subset_of_short_codes():
+    assert CLAUDE_MANUAL_PENDING_P3 <= set(SHORT_CODES)
+
+
+def test_pending_p3_ownership_doc_exists_and_lists_them():
+    doc = REPO_ROOT / "docs" / "dev" / "shim-surface-ownership.md"
+    assert doc.exists(), "ownership manifest missing — the deferral must stay documented"
+    text = doc.read_text(encoding="utf-8")
+    assert "manual-pending-P3" in text
+    for code in CLAUDE_MANUAL_PENDING_P3:
+        assert code in text
+
+
+def test_pending_p3_tripwire_generator_still_cannot_emit_ritual_content():
+    """TRIPWIRE: while these rituals are pending, the generic generator must NOT
+    yet emit their per-ritual operational content. When P3 teaches the generator
+    to emit it, this test fails LOUD — forcing the ritual to be removed from
+    CLAUDE_MANUAL_PENDING_P3 and re-rendered (so the deferral can never rot into
+    a forgotten permanent exception)."""
+    vvv_out = render_one("claude-code", _spec("vvv")).lower()
+    assert "--show" not in vvv_out, (
+        "generator now emits vvv two-phase content — P3 may be done: "
+        "remove 'vvv' from CLAUDE_MANUAL_PENDING_P3 and re-render it"
+    )
+    assert "pre-flight" not in vvv_out
+    assert "why not bare" not in vvv_out
