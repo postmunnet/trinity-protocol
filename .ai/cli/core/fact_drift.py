@@ -20,6 +20,7 @@ from typing import Callable, Dict, List, Optional
 
 ATLAS = "dev/trinity_structure_workflow.html"
 CLAUDE = "CLAUDE.md"
+REGISTRY = "siblings/REGISTRY.md"
 
 
 # ── helpers (fail-soft) ──────────────────────────────────────────────────
@@ -55,7 +56,15 @@ def _truth_sibling_dirs(root: Path) -> Optional[str]:
 
 
 def _truth_registry_active(root: Path) -> Optional[str]:
-    return _first(r"(\d+)\s+registered", _read(root, "siblings/REGISTRY.md"))
+    # Ground truth = actual registrations in .ai/tools.yaml (one "- name:" entry
+    # per tool), NOT prose in siblings/REGISTRY.md — a doc asserting a fact must
+    # not be its own truth source (doc-vs-doc blind spot: guard showed ✅ 12=12
+    # while tools.yaml held 18; found by runtime-os survey 2026-07-08).
+    text = _read(root, ".ai/tools.yaml")
+    if text is None:
+        return None
+    n = len(re.findall(r"^\s*-\s+name:", text, re.MULTILINE))
+    return str(n) if n else None
 
 
 def _truth_terminal_states(root: Path) -> Optional[str]:
@@ -103,6 +112,12 @@ def _claim_registry_active(t: Optional[str]) -> Optional[str]:
     return _distinct(r"(\d+)\s+registry-active", t)
 
 
+def _claim_registry_registered(t: Optional[str]) -> Optional[str]:
+    # REGISTRY.md's headline ("N registered in `.ai/tools.yaml`") is now a CLAIM
+    # checked against the tools.yaml truth above (was the truth source pre-2026-07-08).
+    return _distinct(r"(\d+)\s+registered", t)
+
+
 def _claim_terminal_states(t: Optional[str]) -> Optional[str]:
     if not t:
         return None
@@ -133,8 +148,9 @@ class Fact:
 FACTS: List[Fact] = [
     Fact("sibling_source_dirs", "sibling source directories (ls siblings/*/)",
          _truth_sibling_dirs, {ATLAS: _claim_source_dirs}),
-    Fact("registry_active_tools", "registry-active tools (REGISTRY.md 'N registered')",
-         _truth_registry_active, {ATLAS: _claim_registry_active}),
+    Fact("registry_active_tools", "registered tools (.ai/tools.yaml '- name:' count)",
+         _truth_registry_active, {ATLAS: _claim_registry_active,
+                                  REGISTRY: _claim_registry_registered}),
     Fact("graph_terminal_states", "graph terminal states (standard.yaml)",
          _truth_terminal_states, {ATLAS: _claim_terminal_states}),
     Fact("linked_project_count", "linked projects (registry/projects.json)",

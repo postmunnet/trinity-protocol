@@ -18,6 +18,10 @@ def _project(tmp: Path, *, sib_dirs=3, registered=12, retros=5, projects=8,
     g = tmp / ".ai" / "graphs"
     g.mkdir(parents=True)
     (g / "standard.yaml").write_text("terminal_states: [DONE, DEAD]\n")
+    # truth source for registry_active_tools (2026-07-08: doc→tools.yaml)
+    (tmp / ".ai" / "tools.yaml").write_text(
+        "tools:\n" + "".join(f"  - name: tool-{i}\n" for i in range(registered))
+    )
     reg = tmp / "registry"
     reg.mkdir()
     (reg / "projects.json").write_text(json.dumps({"version": 1, "projects": [str(i) for i in range(projects)]}))
