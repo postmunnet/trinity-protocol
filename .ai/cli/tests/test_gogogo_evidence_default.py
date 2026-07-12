@@ -93,16 +93,18 @@ def test_high_risk_verify_pass():
     assert g["structural_pass"] is False  # evidence-backed, not structural
 
 
-# ── D11 ──
+# ── D11 (updated per ADR-0001) ──
 def test_high_risk_verify_fail_not_needs_human():
-    # high-risk WITH verify → evidence path (not needs_human); a failing
-    # evidence command is DEAD per the existing path, never NEEDS_HUMAN.
+    # high-risk WITH verify → the GATE runs the evidence command (it does not
+    # escalate to needs_human at gate time). Per ADR-0001, a *failing* evidence
+    # command is a recoverable failure → NEEDS_HUMAN, not DEAD (supersedes the
+    # earlier D11 "evidence failure is DEAD" labelling).
     g = rc.evaluate_evidence_gate(
         {"risk": "high", "title": "x", "verify": {"command": "false", "expect_exit": 0}}
     )
     assert g["action"] == "evidence_run"
     assert g["action"] != "needs_human"
     src = inspect.getsource(gogogo)
-    # evidence-failure branch emits DEAD, and the comment pins D11 intent
-    assert 'verifier_verdict": "DEAD"' in src
-    assert "NOT NEEDS_HUMAN" in src
+    # evidence-failure branch emits NEEDS_HUMAN (ADR-0001); reason_code pins it
+    assert 'verifier_verdict": "NEEDS_HUMAN"' in src
+    assert "evidence_command_failed" in src
