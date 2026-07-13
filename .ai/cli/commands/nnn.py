@@ -178,7 +178,28 @@ def _nnn_inner(
         if not envelope_path.exists() and candidate.exists():
             envelope_path = candidate
 
-    envelope = json.loads(envelope_path.read_text(encoding="utf-8"))
+    if not envelope_path.exists():
+        console.print(
+            f"[red]plan envelope not found: {envelope_path} — see "
+            "docs/quickstart.md for a template, or run: ai nnn --help[/red]"
+        )
+        raise typer.Exit(2)
+    try:
+        envelope_text = envelope_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        console.print(
+            f"[red]plan envelope not readable: {envelope_path} ({exc}) — see "
+            "docs/quickstart.md for a template, or run: ai nnn --help[/red]"
+        )
+        raise typer.Exit(2)
+    try:
+        envelope = json.loads(envelope_text)
+    except json.JSONDecodeError as exc:
+        console.print(
+            f"[red]plan envelope is not valid JSON: {envelope_path} ({exc}) — "
+            "see docs/quickstart.md for a template, or run: ai nnn --help[/red]"
+        )
+        raise typer.Exit(2)
     cap.input("plan_envelope.json", envelope)
 
     loop = Loop(

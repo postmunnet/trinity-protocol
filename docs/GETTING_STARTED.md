@@ -4,6 +4,12 @@ Trinity is a local-first AI governance kernel. It does not make an AI
 agent smarter; it makes AI-assisted work more explicit, auditable, and
 verifiable.
 
+## Prerequisites
+
+- Python 3.9+
+- Install runtime dependencies: `pip install -r requirements.txt`
+  (installs `rich`, `typer`, `PyYAML` — the packages the kernel imports)
+
 ## First Commands
 
 Run from the repository root:

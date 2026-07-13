@@ -1,0 +1,59 @@
+{
+  "goal": "Rename every 'foo' identifier in src/ to 'bar' without breaking the tests.",
+  "estimated_duration_minutes": 15,
+  "estimated_iterations": 1,
+  "estimated_tool_calls": 8,
+  "target": "src/",
+  "allowed_paths": [
+    "src/**"
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "title": "Grep for every 'foo' identifier under src/ to build the rename list (skip test fixtures and third-party modules)",
+      "estimate_min": 3,
+      "risk": "low"
+    },
+    {
+      "n": 2,
+      "title": "Rename each 'foo' identifier to 'bar' across src/**/*.py",
+      "estimate_min": 7,
+      "risk": "medium"
+    },
+    {
+      "n": 3,
+      "title": "Run the test suite and confirm zero 'foo' identifiers remain in src/",
+      "estimate_min": 5,
+      "risk": "low"
+    }
+  ],
+  "forbidden_paths": [
+    "docs/specs/**",
+    ".ai/policies/**",
+    ".ai/schemas/**",
+    ".ai/audit/**"
+  ],
+  "acceptance": [
+    {
+      "id": "A1",
+      "description": "no 'foo' identifiers remain in src/",
+      "command": "! rg -q '\\bfoo\\b' src/",
+      "required": true,
+      "expect_exit": 0
+    },
+    {
+      "id": "A2",
+      "description": "'bar' identifiers are present in src/ (the rename actually happened)",
+      "command": "rg -q '\\bbar\\b' src/",
+      "required": true,
+      "expect_exit": 0
+    },
+    {
+      "id": "A3",
+      "description": "the test suite still passes after the rename",
+      "command": "python3 -m pytest -q",
+      "required": true,
+      "expect_exit": 0
+    }
+  ]
+}
