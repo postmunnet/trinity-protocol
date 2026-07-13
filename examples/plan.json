@@ -1,29 +1,17 @@
 {
-  "goal": "Rename every 'foo' identifier in src/ to 'bar' without breaking the tests.",
-  "estimated_duration_minutes": 15,
+  "goal": "Create a note at hello/trinity.md containing the line 'Trinity verified this.' — a deliberately tiny task so you can watch the full governed loop close green in about a minute.",
+  "estimated_duration_minutes": 5,
   "estimated_iterations": 1,
-  "estimated_tool_calls": 8,
-  "target": "src/",
+  "estimated_tool_calls": 3,
+  "target": "hello/",
   "allowed_paths": [
-    "src/**"
+    "hello/**"
   ],
   "steps": [
     {
       "n": 1,
-      "title": "Grep for every 'foo' identifier under src/ to build the rename list (skip test fixtures and third-party modules)",
-      "estimate_min": 3,
-      "risk": "low"
-    },
-    {
-      "n": 2,
-      "title": "Rename each 'foo' identifier to 'bar' across src/**/*.py",
-      "estimate_min": 7,
-      "risk": "medium"
-    },
-    {
-      "n": 3,
-      "title": "Run the test suite and confirm zero 'foo' identifiers remain in src/",
-      "estimate_min": 5,
+      "title": "Create hello/trinity.md containing the line 'Trinity verified this.'",
+      "estimate_min": 2,
       "risk": "low"
     }
   ],
@@ -36,22 +24,15 @@
   "acceptance": [
     {
       "id": "A1",
-      "description": "no 'foo' identifiers remain in src/",
-      "command": "! rg -q '\\bfoo\\b' src/",
+      "description": "the note file exists",
+      "command": "test -f hello/trinity.md",
       "required": true,
       "expect_exit": 0
     },
     {
       "id": "A2",
-      "description": "'bar' identifiers are present in src/ (the rename actually happened)",
-      "command": "rg -q '\\bbar\\b' src/",
-      "required": true,
-      "expect_exit": 0
-    },
-    {
-      "id": "A3",
-      "description": "the test suite still passes after the rename",
-      "command": "python3 -m pytest -q",
+      "description": "it contains the required line (the work actually happened)",
+      "command": "grep -q 'Trinity verified this.' hello/trinity.md",
       "required": true,
       "expect_exit": 0
     }

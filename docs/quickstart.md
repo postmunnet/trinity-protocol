@@ -19,13 +19,14 @@ audit events. If you see a panel, you are good to go.
 
 ## Hello Trinity — a complete session
 
-The task: rename every `foo` identifier in `src/` to `bar` without
-breaking the tests. Five commands, one audit trail.
+The task is deliberately tiny — create a one-line note file — so you can
+watch the whole governed loop open, execute, verify, and close **green**
+in about a minute. Real code sessions run through the exact same loop.
 
 ### 1. Open a session
 
 ```bash
-ai sss "rename-foo-to-bar-everywhere"
+ai sss "hello-trinity"
 ```
 
 This creates a session capsule on disk — a folder with `THINK/`,
@@ -35,11 +36,11 @@ This creates a session capsule on disk — a folder with `THINK/`,
 
 ```bash
 ai vvv \
-  --answer "1=All 'foo' references in src/ become 'bar' with tests still green" \
-  --answer "2=src/**/*.py only — no config, no docs, no vendor" \
-  --answer "3=Skip 'foo' in test fixtures and third-party modules" \
-  --answer "4=All tests pass · zero 'foo' identifiers remain in src/" \
-  --answer "5=Identifier collision if 'bar' already exists — grep first"
+  --answer "1=Create hello/trinity.md containing the line 'Trinity verified this.'" \
+  --answer "2=Only the hello/ folder — nothing else" \
+  --answer "3=Do not touch anything outside hello/" \
+  --answer "4=hello/trinity.md exists and contains that exact line" \
+  --answer "5=None — it is a trivial note"
 ```
 
 The five questions are Goal, Scope, Constraint, Acceptance, Risk.
@@ -55,31 +56,19 @@ example for this exact task ships at
 
 ```json
 {
-  "goal": "Rename every 'foo' identifier in src/ to 'bar' without breaking the tests.",
-  "estimated_duration_minutes": 15,
+  "goal": "Create a note at hello/trinity.md containing the line 'Trinity verified this.'",
+  "estimated_duration_minutes": 5,
   "estimated_iterations": 1,
-  "estimated_tool_calls": 8,
-  "target": "src/",
+  "estimated_tool_calls": 3,
+  "target": "hello/",
   "allowed_paths": [
-    "src/**"
+    "hello/**"
   ],
   "steps": [
     {
       "n": 1,
-      "title": "Grep for every 'foo' identifier under src/ to build the rename list (skip test fixtures and third-party modules)",
-      "estimate_min": 3,
-      "risk": "low"
-    },
-    {
-      "n": 2,
-      "title": "Rename each 'foo' identifier to 'bar' across src/**/*.py",
-      "estimate_min": 7,
-      "risk": "medium"
-    },
-    {
-      "n": 3,
-      "title": "Run the test suite and confirm zero 'foo' identifiers remain in src/",
-      "estimate_min": 5,
+      "title": "Create hello/trinity.md containing the line 'Trinity verified this.'",
+      "estimate_min": 2,
       "risk": "low"
     }
   ],
@@ -92,22 +81,15 @@ example for this exact task ships at
   "acceptance": [
     {
       "id": "A1",
-      "description": "no 'foo' identifiers remain in src/",
-      "command": "! rg -q '\\bfoo\\b' src/",
+      "description": "the note file exists",
+      "command": "test -f hello/trinity.md",
       "required": true,
       "expect_exit": 0
     },
     {
       "id": "A2",
-      "description": "'bar' identifiers are present in src/ (the rename actually happened)",
-      "command": "rg -q '\\bbar\\b' src/",
-      "required": true,
-      "expect_exit": 0
-    },
-    {
-      "id": "A3",
-      "description": "the test suite still passes after the rename",
-      "command": "python3 -m pytest -q",
+      "description": "it contains the required line (the work actually happened)",
+      "command": "grep -q 'Trinity verified this.' hello/trinity.md",
       "required": true,
       "expect_exit": 0
     }
@@ -121,7 +103,16 @@ Run it straight from the shipped example — no need to type it out:
 ai nnn --plan-envelope=examples/plan.json
 ```
 
-### 4. Execute, checkpoint by checkpoint
+### 4. Do the work
+
+The plan describes one step. Do it — in a real session this is the part
+your coding agent performs for you:
+
+```bash
+mkdir -p hello && echo "Trinity verified this." > hello/trinity.md
+```
+
+### 5. Checkpoint the execution
 
 ```bash
 ai gogogo
@@ -131,19 +122,29 @@ Each step runs its work, then a verifier evaluates pass-when
 predicates. A failed predicate stops the chain — the agent cannot
 declare itself done.
 
-### 5. Close the loop
+### 6. Confirm the goal is really yours
+
+Trinity will not let an AI self-certify *the goal*. Mark the five
+answers as human-confirmed before you close:
+
+```bash
+ai vvv --confirm 1,2,3,4,5
+```
+
+### 7. Close the loop
 
 ```bash
 ai rrr
 ```
 
-`rrr` runs the acceptance gates declared earlier, writes the
-structured retro, and hands the lessons to `memory-cli` so the
-next session can recall them.
+`rrr` runs the acceptance gates (the file exists **and** contains the
+line), writes the structured retro, and hands the lessons to
+`memory-cli`. Because the work is proven and the goal is confirmed, the
+session closes **DONE**. Archive it with `ai close`.
 
 ## What just happened?
 
-Five commands produced four artifacts you can audit at any time:
+One governed loop produced four artifacts you can audit at any time:
 
 - A signed audit chain at `.ai/audit/events.ndjson`
 - A frozen plan envelope at `.state/plan.json`
