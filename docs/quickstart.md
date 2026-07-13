@@ -81,7 +81,7 @@ Five commands produced four artifacts you can audit at any time:
 
 - A signed audit chain at `.ai/audit/events.ndjson`
 - A frozen plan envelope at `.state/plan.json`
-- A diff of every edited file under `DO/dev/`
+- An acceptance + forbidden-path gate at `rrr`, checked against your git baseline
 - A retro under `.ai/memory/retros/` linked back to the audit chain
 
 No step could be skipped, no claim could be self-certified.
